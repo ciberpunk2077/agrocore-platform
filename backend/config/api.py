@@ -3,6 +3,7 @@ from ninja import NinjaAPI
 from apps.organizations.api.router import router as organizations_router
 from apps.common.api.router import router as common_router
 from apps.accounts.api.router import router as accounts_router
+from apps.catalogs.api.router import router as catalogs_router
 
 
 api = NinjaAPI(
@@ -24,4 +25,9 @@ api.add_router(
 api.add_router(
     "/common",
     common_router,
+)
+
+api.add_router(
+    "/catalogs",
+    catalogs_router,
 )

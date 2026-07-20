@@ -10,14 +10,15 @@ from django.db import models
 
 from apps.common.models import AuditModel
 from apps.organizations.models import Organization
+from apps.catalogs.models import FarmType
 
 
-class FarmType(models.TextChoices):
-    RANCH = "RANCH", "Rancho"
-    DAIRY = "DAIRY", "Lechería"
-    FEEDLOT = "FEEDLOT", "Engorda"
-    STABLE = "STABLE", "Establo"
-    FARM = "FARM", "Granja"
+# class FarmType(models.TextChoices):
+#     RANCH = "RANCH", "Rancho"
+#     DAIRY = "DAIRY", "Lechería"
+#     FEEDLOT = "FEEDLOT", "Engorda"
+#     STABLE = "STABLE", "Establo"
+#     FARM = "FARM", "Granja"
 
 class Farm(AuditModel):
     """
@@ -41,11 +42,18 @@ class Farm(AuditModel):
         verbose_name="Código",
     )
 
-    farm_type = models.CharField(
-        max_length=20,
-        choices=FarmType.choices,
-        default=FarmType.RANCH,
-        verbose_name="Tipo",
+    # farm_type = models.CharField(
+    #     max_length=20,
+    #     choices=FarmType.choices,
+    #     default=FarmType.RANCH,
+    #     verbose_name="Tipo",
+    # )
+
+    farm_type = models.ForeignKey(
+        FarmType,
+        on_delete=models.PROTECT,
+        related_name="farms",
+        verbose_name="Tipo de unidad productiva",
     )
 
     description = models.TextField(
