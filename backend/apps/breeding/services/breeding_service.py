@@ -3,6 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from apps.animals.models import Animal
 from apps.catalogs.models import BreedingType
 from apps.breeding.models import BreedingEvent
+from apps.common.exceptions.breeding import BreedingValidationError
 
 from apps.common.services import BaseCRUDService
 
@@ -38,8 +39,8 @@ class BreedingService:
             return event
 
         except ObjectDoesNotExist:
-            raise ValidationError(
-                "Uno de los registros relacionados no existe."
+            raise BreedingValidationError(
+                "La hembra, el macho o el tipo de reproducción no existen."
             )
 
     @staticmethod
