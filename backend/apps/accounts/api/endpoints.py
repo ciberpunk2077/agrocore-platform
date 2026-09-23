@@ -13,7 +13,7 @@ from apps.accounts.services.authentication import AuthenticationService
 router = Router()
 
 
-@router.get("/health")
+@router.get("/health", auth=None)
 def health(request):
     return {
         "status": "ok",
@@ -23,13 +23,9 @@ def health(request):
 @router.post(
     "/login",
     response=LoginResponseSchema,
+    auth=None,
 )
 def login(request, payload: LoginSchema):
-
-    # user = authenticate_user(
-    #     payload.email,
-    #     payload.password,
-    # )
 
     user = AuthenticationService.login(
         payload.email,
@@ -40,11 +36,6 @@ def login(request, payload: LoginSchema):
         raise HttpError(401, "Credenciales inválidas.")
     
     tokens = AuthenticationService.create_tokens(user)
-
-    # return {
-    #     "message": "Login correcto.",
-    #     "user": UserSchema.model_validate(user),
-    # }
 
     return {
         "access": tokens["access"],

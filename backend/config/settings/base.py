@@ -72,7 +72,18 @@ INSTALLED_APPS = [
     "apps.accounts.apps.AccountsConfig",
     "apps.production.apps.ProductionConfig",
     "apps.farms.apps.FarmsConfig",
-    "apps.catalogs.apps.CatalogsConfig"
+    "apps.catalogs.apps.CatalogsConfig",
+    "apps.lots.apps.LotsConfig",
+    "apps.animals.apps.AnimalsConfig",
+    "apps.weights.apps.WeightsConfig",
+    "apps.animal_movements.apps.AnimalMovementsConfig",
+    "apps.vaccinations.apps.VaccinationsConfig",
+    "apps.timeline.apps.TimelineConfig",
+    "apps.dashboard.apps.DashboardConfig",
+    "apps.reproduction.apps.ReproductionConfig",
+    "apps.breeding.apps.BreedingConfig",
+    "apps.pregnancy.apps.PregnancyConfig",
+    "apps.births.apps.BirthsConfig",
     
 ]
 

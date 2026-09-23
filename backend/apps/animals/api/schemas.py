@@ -1,0 +1,73 @@
+from datetime import date
+from decimal import Decimal
+from uuid import UUID
+
+from ninja import Schema
+
+
+class AnimalCreateSchema(Schema):
+    # organization_id: UUID
+    farm_id: UUID
+    lot_id: UUID
+
+    species_id: UUID
+    breed_id: UUID
+    gender_id: UUID
+    status_id: UUID
+
+    internal_id: str
+
+    official_tag: str = ""
+    electronic_tag: str = ""
+    name: str = ""
+
+    birth_date: date | None = None
+    birth_weight: Decimal | None = None
+
+    mother_id: UUID | None = None
+    father_id: UUID | None = None
+
+    notes: str | None = None
+
+
+class AnimalResponseSchema(Schema):
+    id: UUID
+    internal_id: str
+
+    official_tag: str | None
+    electronic_tag: str | None
+
+    name: str | None
+
+    species: str
+    breed: str
+    gender: str
+    status: str
+
+    farm: str | None
+    lot: str | None
+
+    is_active: bool
+
+class AnimalUpdateSchema(Schema):
+    farm_id: UUID
+    lot_id: UUID
+
+    species_id: UUID
+    breed_id: UUID
+    gender_id: UUID
+    status_id: UUID
+
+    internal_id: str
+
+    official_tag: str | None = None
+    electronic_tag: str | None = None
+    name: str | None = None
+
+    birth_date: date | None = None
+    birth_weight: Decimal | None = None
+
+    mother_id: UUID | None = None
+    father_id: UUID | None = None
+
+    notes: str | None = None

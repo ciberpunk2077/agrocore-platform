@@ -1,29 +1,29 @@
-
 from django.utils.deprecation import MiddlewareMixin
-from django.contrib.auth.models import AnonymousUser
 from apps.accounts.services.jwt import get_user_from_token
 from apps.common.context.services import ContextService
 
 
 class JWTAuthenticationMiddleware(MiddlewareMixin):
     """
-    Middleware encargado de autenticar usuarios mediante JWT.
+    Middleware encargado de autenticar usuarios mediante JWT
+    y construir el contexto actual de la petición.
     """
 
     def process_request(self, request):
 
-        # request.user = None
-
-        # request.user = AnonymousUser()
         # No tocar autenticación del Admin Django
         if request.path.startswith("/admin/"):
             return
 
+        # Contexto por defecto
+        request.context = None
+        request.organization = None
+
         # Mantener autenticación por sesión si existe
         if request.user.is_authenticated:
+            request.context = ContextService.build(request.user)
+            request.organization = request.context.organization
             return
-
-        request.organization = None
 
         authorization = request.headers.get("Authorization")
 
@@ -41,11 +41,8 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
             if user:
                 request.user = user
 
-                request.organization = ( ContextService.get_current_organization(user))
-
-                # request.context = ContextService.build(user)
+                request.context = ContextService.build(user)
+                request.organization = request.context.organization
 
         except Exception:
             pass
-
-        
