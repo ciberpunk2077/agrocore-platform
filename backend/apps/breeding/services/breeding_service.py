@@ -46,7 +46,7 @@ class BreedingService:
     @staticmethod
     def update(event, context, data):
 
-        relations = BreedingService._load_relations(data)
+        relations = BreedingService._load_relations(context, data)
 
         BreedingService._validate_relations(
             context,
