@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.core.exceptions import ValidationError
 from apps.common.models import AuditModel
 
 from apps.animals.models import Animal
@@ -80,6 +80,59 @@ class BreedingEvent(AuditModel):
             models.Index(fields=["organization"]),
             models.Index(fields=["is_active"]),
         ]
+
+    def clean(self):
+        """
+        Valida la coherencia del evento reproductivo.
+        """
+
+        super().clean()
+
+        if self.animal_id and self.organization_id:
+
+            if self.animal.organization_id != self.organization_id:
+                raise ValidationError({
+                    "animal": (
+                        "La hembra no pertenece a la organización "
+                        "del evento reproductivo."
+                    )
+                })
+
+            if self.animal.gender.code != "F":
+                raise ValidationError({
+                    "animal": (
+                        "El animal reproductor principal debe ser una hembra."
+                    )
+                })
+
+        if self.male_id:
+
+            if (
+                self.organization_id
+                and self.male.organization_id != self.organization_id
+            ):
+                raise ValidationError({
+                    "male": (
+                        "El macho no pertenece a la organización "
+                        "del evento reproductivo."
+                    )
+                })
+
+            if self.male.gender.code != "M":
+                raise ValidationError({
+                    "male": (
+                        "El animal seleccionado como macho debe ser un macho."
+                    )
+                })
+
+            if self.animal_id and self.male_id == self.animal_id:
+                raise ValidationError({
+                    "male": (
+                        "La hembra y el macho no pueden ser el mismo animal."
+                    )
+                })
+
+
 
     def __str__(self):
 
