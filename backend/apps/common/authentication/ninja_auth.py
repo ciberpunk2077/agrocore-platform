@@ -17,4 +17,7 @@ class JWTBearer(HttpBearer):
         if not user:
             return None
 
+        if request.user.is_authenticated and request.user.pk != user.pk:
+            return None
+
         return user
