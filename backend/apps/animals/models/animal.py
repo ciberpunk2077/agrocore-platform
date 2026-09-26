@@ -187,6 +187,57 @@ class Animal(AuditModel):
                 )
 
 
+        self._validate_genealogy_cycles()
+
+    def _validate_genealogy_cycles(self):
+        """Reject ancestry paths back to this animal, including inactive ancestors."""
+        errors = {}
+        ancestors = Animal._base_manager.using(self._state.db).order_by()
+        messages = {
+            "mother": (
+                "Un animal no puede ser su propia madre.",
+                "La madre seleccionada genera un ciclo genealógico.",
+            ),
+            "father": (
+                "Un animal no puede ser su propio padre.",
+                "El padre seleccionado genera un ciclo genealógico.",
+            ),
+        }
+
+        for field in ("mother", "father"):
+            parent_id = getattr(self, f"{field}_id")
+            if parent_id is None:
+                continue
+            if parent_id == self.pk:
+                errors[field] = ValidationError(
+                    messages[field][0], code="self_reference",
+                )
+                continue
+
+            stack = [parent_id]
+            visited = set()
+            while stack:
+                ancestor_id = stack.pop()
+                if ancestor_id == self.pk:
+                    errors[field] = ValidationError(
+                        messages[field][1], code="genealogy_cycle",
+                    )
+                    break
+                if ancestor_id in visited:
+                    continue
+                visited.add(ancestor_id)
+
+                ancestor = ancestors.filter(pk=ancestor_id).values_list(
+                    "id", "mother_id", "father_id",
+                ).first()
+                if ancestor is not None:
+                    stack.extend(
+                        parent for parent in ancestor[1:] if parent is not None
+                    )
+
+        if errors:
+            raise ValidationError(errors)
+
     def save(self, *args, **kwargs):
 
         self.full_clean()
