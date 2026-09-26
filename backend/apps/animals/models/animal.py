@@ -187,6 +187,108 @@ class Animal(AuditModel):
                 )
 
 
+        errors = {}
+        for field, message in (
+            ("mother", "La madre debe pertenecer a la misma organización que el animal."),
+            ("father", "El padre debe pertenecer a la misma organización que el animal."),
+        ):
+            if getattr(self, f"{field}_id") is None:
+                continue
+            try:
+                parent = getattr(self, field)
+            except Animal.DoesNotExist:
+                # FK existence is checked by full_clean().
+                continue
+            if parent.organization_id != self.organization_id:
+                errors[field] = ValidationError(message, code="parent_organization")
+
+
+        for field, expected_gender, message, code in (
+            (
+                "mother",
+                "F",
+                "El animal seleccionado como madre debe ser una hembra.",
+                "invalid_mother_gender",
+            ),
+            (
+                "father",
+                "M",
+                "El animal seleccionado como padre debe ser un macho.",
+                "invalid_father_gender",
+            ),
+        ):
+            if getattr(self, f"{field}_id") is None:
+                continue
+
+            try:
+                parent = getattr(self, field)
+            except Animal.DoesNotExist:
+                # FK existence is checked by full_clean().
+                continue
+
+            if parent.gender.code != expected_gender:
+                errors[field] = ValidationError(
+                    message,
+                    code=code,
+                )
+
+
+        try:
+            self._validate_genealogy_cycles()
+        except ValidationError as error:
+            errors = error.update_error_dict(errors)
+        if errors:
+            raise ValidationError(errors)
+
+    def _validate_genealogy_cycles(self):
+        """Reject ancestry paths back to this animal, including inactive ancestors."""
+        errors = {}
+        ancestors = Animal._base_manager.using(self._state.db).order_by()
+        messages = {
+            "mother": (
+                "Un animal no puede ser su propia madre.",
+                "La madre seleccionada genera un ciclo genealógico.",
+            ),
+            "father": (
+                "Un animal no puede ser su propio padre.",
+                "El padre seleccionado genera un ciclo genealógico.",
+            ),
+        }
+
+        for field in ("mother", "father"):
+            parent_id = getattr(self, f"{field}_id")
+            if parent_id is None:
+                continue
+            if parent_id == self.pk:
+                errors[field] = ValidationError(
+                    messages[field][0], code="self_reference",
+                )
+                continue
+
+            stack = [parent_id]
+            visited = set()
+            while stack:
+                ancestor_id = stack.pop()
+                if ancestor_id == self.pk:
+                    errors[field] = ValidationError(
+                        messages[field][1], code="genealogy_cycle",
+                    )
+                    break
+                if ancestor_id in visited:
+                    continue
+                visited.add(ancestor_id)
+
+                ancestor = ancestors.filter(pk=ancestor_id).values_list(
+                    "id", "mother_id", "father_id",
+                ).first()
+                if ancestor is not None:
+                    stack.extend(
+                        parent for parent in ancestor[1:] if parent is not None
+                    )
+
+        if errors:
+            raise ValidationError(errors)
+
     def save(self, *args, **kwargs):
 
         self.full_clean()

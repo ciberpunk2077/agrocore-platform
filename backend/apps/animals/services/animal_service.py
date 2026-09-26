@@ -91,9 +91,11 @@ class AnimalService:
     @staticmethod
     def _load_relations(context, data):
         """
-        Obtiene todas las entidades relacionadas activas.
+        Obtiene relaciones activas y progenitores del tenant sin filtrar actividad.
         """
         return {
+            "mother": AnimalService._load_parent(context, data.mother_id),
+            "father": AnimalService._load_parent(context, data.father_id),
             "farm": Farm.objects.get(
                 id=data.farm_id,
                 organization=context.organization,
@@ -121,6 +123,16 @@ class AnimalService:
                 is_active=True,
             ),
         }
+
+    @staticmethod
+    def _load_parent(context, parent_id):
+        if parent_id is None:
+            return None
+        # Preserve the existing acceptance of inactive parents.
+        return Animal._base_manager.get(
+            id=parent_id,
+            organization=context.organization,
+        )
 
     @staticmethod
     def _validate_relations(context, relations):
@@ -166,8 +178,8 @@ class AnimalService:
 
         animal.notes = data.notes
 
-        animal.mother_id = data.mother_id
-        animal.father_id = data.father_id
+        animal.mother = relations["mother"]
+        animal.father = relations["father"]
 
 
     # @staticmethod

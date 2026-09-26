@@ -43,32 +43,66 @@ class BreedingService:
                 "La hembra, el macho o el tipo de reproducción no existen."
             )
 
+        except ValidationError:
+            raise BreedingValidationError(
+                "Los datos del evento reproductivo son inválidos."
+            )
+
     @staticmethod
     def update(event, context, data):
 
-        relations = BreedingService._load_relations(data)
+        try:
 
-        BreedingService._validate_relations(
-            context,
-            relations,
-        )
+            if event.organization_id != context.organization.id:
+                raise BreedingValidationError(
+                    "El evento reproductivo no pertenece a la organización actual."
+                )
 
-        event.animal = relations["animal"]
-        event.male = relations["male"]
-        event.breeding_type = relations["breeding_type"]
+            relations = BreedingService._load_relations(
+                context,
+                data,
+            )
 
-        event.date = data.date
-        event.expected_birth = data.expected_birth
-        event.technician = data.technician
-        event.notes = data.notes
+            BreedingService._validate_relations(
+                context,
+                relations,
+            )
 
-        event.full_clean()
-        event.save()
+            event.animal = relations["animal"]
+            event.male = relations["male"]
+            event.breeding_type = relations["breeding_type"]
 
-        return event
+            event.date = data.date
+            event.expected_birth = data.expected_birth
+            event.technician = data.technician
+            event.notes = data.notes
+
+            event.full_clean()
+            event.save()
+
+            return event
+
+        except ObjectDoesNotExist:
+            raise BreedingValidationError(
+                "La hembra, el macho o el tipo de reproducción no existen."
+            )
+
+
+        except ValidationError:
+            event.refresh_from_db()
+            
+            raise BreedingValidationError(
+                "Los datos del evento reproductivo son inválidos."
+            )
+
 
     @staticmethod
-    def delete(event):
+    def delete(event, context):
+
+        if event.organization_id != context.organization.id:
+            raise BreedingValidationError(
+                "El evento reproductivo no pertenece a la organización actual."
+            )
 
         return BaseCRUDService.soft_delete(
             event,
@@ -109,20 +143,32 @@ class BreedingService:
         animal = relations["animal"]
         male = relations["male"]
 
+
+        if animal.gender.code != "F":
+            raise BreedingValidationError(
+                "El animal reproductor principal debe ser una hembra."
+            )
+
+        if male and male.gender.code != "M":
+            raise BreedingValidationError(
+                "El animal seleccionado como macho debe ser un macho."
+            )
+
+
         if animal.organization_id != context.organization.id:
-            raise ValidationError(
-                "La hembra no pertenece a la organización."
+            raise BreedingValidationError(
+                "La hembra no pertenece a la organización actual."
             )
 
         if (
             male
             and male.organization_id != context.organization.id
         ):
-            raise ValidationError(
-                "El macho no pertenece a la organización."
+            raise BreedingValidationError(
+                "El macho no pertenece a la organización actual."
             )
 
         if male and animal.id == male.id:
-            raise ValidationError(
+            raise BreedingValidationError(
                 "La hembra y el macho no pueden ser el mismo animal."
             )
