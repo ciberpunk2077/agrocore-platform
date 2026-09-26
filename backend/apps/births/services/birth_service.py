@@ -6,6 +6,7 @@ from django.core.exceptions import (
 from django.db import transaction
 
 from apps.common.exceptions import (
+    BusinessException,
     RelatedObjectNotFound,
 )
 
@@ -26,6 +27,11 @@ class BirthService:
     def create(context, data):
 
         try:
+
+            if data.calf_id is None and data.calf_gender_id is None:
+                raise BusinessException(
+                    "Debe indicar el sexo de la cría para crearla automáticamente."
+                )
 
             pregnancy = Pregnancy.objects.get(
                 id=data.pregnancy_id,
@@ -77,7 +83,6 @@ class BirthService:
                 calf_gender = Gender.objects.get(
                     id=data.calf_gender_id,
                     is_active=True,
-                    organization=context.organization,
                 )
 
             birth = Birth(
@@ -98,11 +103,16 @@ class BirthService:
 
             if birth.calf is None:
 
-                calf = CalfService.create_from_birth(
-                    context=context,
-                    mother=mother,
-                    birth=birth,
-                )
+                try:
+                    calf = CalfService.create_from_birth(
+                        context=context,
+                        mother=mother,
+                        birth=birth,
+                    )
+                except ValidationError as exc:
+                    raise BusinessException(
+                        "No se pudo crear la cría: los datos del animal son inválidos."
+                    ) from exc
 
                 birth.calf = calf
 
