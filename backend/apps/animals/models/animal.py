@@ -187,7 +187,27 @@ class Animal(AuditModel):
                 )
 
 
-        self._validate_genealogy_cycles()
+        errors = {}
+        for field, message in (
+            ("mother", "La madre debe pertenecer a la misma organización que el animal."),
+            ("father", "El padre debe pertenecer a la misma organización que el animal."),
+        ):
+            if getattr(self, f"{field}_id") is None:
+                continue
+            try:
+                parent = getattr(self, field)
+            except Animal.DoesNotExist:
+                # FK existence is checked by full_clean().
+                continue
+            if parent.organization_id != self.organization_id:
+                errors[field] = ValidationError(message, code="parent_organization")
+
+        try:
+            self._validate_genealogy_cycles()
+        except ValidationError as error:
+            errors = error.update_error_dict(errors)
+        if errors:
+            raise ValidationError(errors)
 
     def _validate_genealogy_cycles(self):
         """Reject ancestry paths back to this animal, including inactive ancestors."""
