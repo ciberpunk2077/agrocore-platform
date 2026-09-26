@@ -18,6 +18,7 @@ class ContextService:
                 user=user,
                 is_default=True,
                 is_active=True,
+                organization__is_active=True,
             )
             .first()
         )

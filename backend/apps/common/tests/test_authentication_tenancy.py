@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.test import TestCase
 
@@ -160,3 +161,208 @@ class AuthenticationTenancyIntegrationTests(TestCase):
         self.assertEqual(response.wsgi_request.user.pk, self.user_a.pk)
         self.assertFalse(response.wsgi_request.user.is_superuser)
         self.assertIsNone(get_current_organization())
+
+
+class TenantContextRegressionTests(TestCase):
+    def test_bearer_without_default_active_membership_has_no_tenant(self):
+        user = User.objects.create_user(
+            email="b4-no-membership@example.com",
+            is_active=True,
+        )
+        token = create_access_token(user)
+
+        response = self.client.get(
+            "/api/common/tenant",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        request = response.wsgi_request
+        self.assertEqual(request.user.pk, user.pk)
+        self.assertEqual(request.auth.pk, user.pk)
+        self.assertIsNotNone(request.context)
+        self.assertEqual(request.context.user.pk, user.pk)
+        self.assertIsNone(request.context.membership)
+        self.assertIsNone(request.context.organization)
+        self.assertIsNone(request.organization)
+        self.assertEqual(response.json(), {"organization": None})
+        self.assertIsNone(get_current_organization())
+
+    def test_bearer_with_inactive_organization_has_no_tenant(self):
+        user = User.objects.create_user(
+            email="b4-inactive-org@example.com",
+            is_active=True,
+        )
+        organization = Organization.objects.create(
+            code="TEST_B4_INACTIVE",
+            name="Test B4 inactive organization",
+        )
+        membership = Membership.objects.create(
+            user=user,
+            organization=organization,
+            role=Membership.Role.VIEWER,
+            is_default=True,
+            is_active=True,
+        )
+        organization.is_active = False
+        organization.save(update_fields=["is_active"])
+        membership.refresh_from_db()
+        self.assertTrue(membership.is_active)
+        self.assertTrue(membership.is_default)
+        self.assertFalse(Organization.objects.filter(pk=organization.pk).exists())
+        token = create_access_token(user)
+
+        response = self.client.get(
+            "/api/common/tenant",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        request = response.wsgi_request
+        self.assertEqual(request.user.pk, user.pk)
+        self.assertEqual(request.auth.pk, user.pk)
+        self.assertIsNotNone(request.context)
+        self.assertEqual(request.context.user.pk, user.pk)
+        self.assertIsNone(request.context.membership)
+        self.assertIsNone(request.context.organization)
+        self.assertIsNone(request.organization)
+        self.assertEqual(response.json(), {"organization": None})
+        self.assertIsNone(get_current_organization())
+
+
+class TenantAuthorizationIntegrationTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="b4-tenant@example.com", is_active=True,
+        )
+        self.authorization = f"Bearer {create_access_token(self.user)}"
+
+    def create_membership(self, *, organization_active=True):
+        organization = Organization.objects.create(
+            code="TEST_B4", name="Test B4 organization",
+        )
+        membership = Membership.objects.create(
+            user=self.user, organization=organization,
+            role=Membership.Role.VIEWER, is_default=True, is_active=True,
+        )
+        if not organization_active:
+            organization.is_active = False
+            organization.save(update_fields=["is_active"])
+        return membership, organization
+
+    def assert_breeding_rejected(self, expected_status, authorization=None):
+        headers = {} if authorization is None else {"HTTP_AUTHORIZATION": authorization}
+        with patch("apps.breeding.api.endpoints.BreedingSelector.list") as selector:
+            response = self.client.get("/api/breeding/", **headers)
+        self.assertEqual(response.status_code, expected_status)
+        selector.assert_not_called()
+        self.assertIsNone(get_current_organization())
+        return response
+
+    def test_breeding_without_valid_membership_is_forbidden(self):
+        for state in ("missing", "inactive", "non_default"):
+            with self.subTest(state=state):
+                if state == "inactive":
+                    membership, _ = self.create_membership()
+                    membership.is_active = False
+                    membership.save(update_fields=["is_active"])
+                elif state == "non_default":
+                    membership.is_active = True
+                    membership.is_default = False
+                    membership.save(update_fields=["is_active", "is_default"])
+                response = self.assert_breeding_rejected(403, self.authorization)
+                self.assertIsNone(response.wsgi_request.context.membership)
+                self.assertIsNone(response.wsgi_request.context.organization)
+                self.assertIsNone(response.wsgi_request.organization)
+
+    def test_breeding_with_inactive_organization_is_forbidden(self):
+        self.create_membership(organization_active=False)
+        response = self.assert_breeding_rejected(403, self.authorization)
+        self.assertIsNone(response.wsgi_request.context.membership)
+        self.assertIsNone(response.wsgi_request.context.organization)
+        self.assertIsNone(response.wsgi_request.organization)
+
+    def test_breeding_with_valid_tenant_executes_real_selector(self):
+        from apps.breeding.selectors import BreedingSelector
+
+        membership, organization = self.create_membership()
+        real_list = BreedingSelector.list
+
+        def select(context):
+            self.assertEqual(get_current_organization().pk, organization.pk)
+            return real_list(context)
+
+        with patch(
+            "apps.breeding.api.endpoints.BreedingSelector.list", side_effect=select,
+        ) as selector:
+            response = self.client.get(
+                "/api/breeding/", HTTP_AUTHORIZATION=self.authorization,
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+        request = response.wsgi_request
+        selector.assert_called_once_with(request.context)
+        self.assertEqual(request.user.pk, self.user.pk)
+        self.assertEqual(request.auth.pk, self.user.pk)
+        self.assertEqual(request.context.user.pk, self.user.pk)
+        self.assertEqual(request.context.membership.pk, membership.pk)
+        self.assertEqual(request.context.organization.pk, organization.pk)
+        self.assertEqual(request.organization.pk, organization.pk)
+        self.assertIsNone(get_current_organization())
+
+    def test_breeding_missing_or_invalid_bearer_is_unauthorized(self):
+        for authorization in (None, "Bearer invalid-token"):
+            with self.subTest(authorization=authorization):
+                self.assert_breeding_rejected(401, authorization)
+
+    def test_breeding_conflicting_session_and_bearer_is_unauthorized(self):
+        session_user = User.objects.create_user(
+            email="b4-session@example.com", is_active=True,
+        )
+        self.client.force_login(session_user)
+        self.assert_breeding_rejected(401, self.authorization)
+
+    def test_identity_routes_allow_user_without_tenant(self):
+        for path in ("/api/auth/me", "/api/common/context"):
+            with self.subTest(path=path):
+                response = self.client.get(path, HTTP_AUTHORIZATION=self.authorization)
+                self.assertEqual(response.status_code, 200)
+                request = response.wsgi_request
+                self.assertEqual(request.user.pk, self.user.pk)
+                self.assertEqual(request.auth.pk, self.user.pk)
+                self.assertEqual(request.context.user.pk, self.user.pk)
+                self.assertIsNone(request.context.membership)
+                self.assertIsNone(request.context.organization)
+                self.assertIsNone(request.organization)
+                if path == "/api/auth/me":
+                    self.assertEqual(response.json()["id"], str(self.user.pk))
+                    self.assertEqual(response.json()["email"], self.user.email)
+                else:
+                    self.assertEqual(response.json(), {
+                        "user": self.user.email, "organization": None,
+                    })
+                self.assertIsNone(get_current_organization())
+
+    def test_all_eleven_tenant_mounts_reject_before_domain_logic(self):
+        routes = (
+            ("animals/", "animals", "AnimalSelector.list"),
+            ("farms/", "farms", "FarmSelector.list"),
+            ("lots/", "lots", "LotSelector.list"),
+            ("weights/", "weights", "WeightSelector.list"),
+            ("animal-movements/", "animal_movements", "AnimalMovementSelector.list"),
+            ("vaccinations/", "vaccinations", "VaccinationSelector.list"),
+            (f"timeline/animal/{uuid4()}", "timeline", "TimelineSelector.history"),
+            ("dashboard/summary", "dashboard", "DashboardSelector.summary"),
+            ("breeding/", "breeding", "BreedingSelector.list"),
+            ("pregnancies/", "pregnancy", "PregnancySelector.list"),
+            ("births/", "births", "BirthSelector.list"),
+        )
+        for route, app, selector_name in routes:
+            with self.subTest(route=route):
+                with patch(f"apps.{app}.api.endpoints.{selector_name}") as selector:
+                    response = self.client.get(
+                        f"/api/{route}", HTTP_AUTHORIZATION=self.authorization,
+                    )
+                self.assertEqual(response.status_code, 403)
+                selector.assert_not_called()
+                self.assertIsNone(get_current_organization())

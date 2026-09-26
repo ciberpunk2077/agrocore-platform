@@ -14,7 +14,7 @@ from apps.breeding.api import router as breeding_router
 from apps.pregnancy.api import router as pregnancy_router
 from apps.births.api import router as births_router
 from apps.lots.api import router as lots_router
-from apps.common.authentication.ninja_auth import JWTBearer
+from apps.common.authentication.ninja_auth import JWTBearer, JWTBearerTenant
 from apps.common.exceptions import BusinessException
 from apps.common.api.exception_handlers import business_exception_handler
 from apps.farms.api import router as farms_router
@@ -39,24 +39,24 @@ api.add_router("/common", common_router,)
 
 api.add_router("/catalogs", catalogs_router,)
 
-api.add_router("/animals", animals_router,)
+api.add_router("/animals", animals_router, auth=JWTBearerTenant())
 
-api.add_router("/farms", farms_router,)
+api.add_router("/farms", farms_router, auth=JWTBearerTenant())
 
-api.add_router("/lots", lots_router,)
+api.add_router("/lots", lots_router, auth=JWTBearerTenant())
 
-api.add_router("/weights", weights_router,)
+api.add_router("/weights", weights_router, auth=JWTBearerTenant())
 
-api.add_router("/animal-movements", animal_movements_router,)
+api.add_router("/animal-movements", animal_movements_router, auth=JWTBearerTenant())
 
-api.add_router("/vaccinations", vaccinations_router,)
+api.add_router("/vaccinations", vaccinations_router, auth=JWTBearerTenant())
 
-api.add_router("/timeline", timeline_router,)
+api.add_router("/timeline", timeline_router, auth=JWTBearerTenant())
 
-api.add_router("/dashboard", dashboard_router,)
+api.add_router("/dashboard", dashboard_router, auth=JWTBearerTenant())
 
-api.add_router("/breeding", breeding_router,)
+api.add_router("/breeding", breeding_router, auth=JWTBearerTenant())
 
-api.add_router("/pregnancies", pregnancy_router,)
+api.add_router("/pregnancies", pregnancy_router, auth=JWTBearerTenant())
 
-api.add_router("/births", births_router,)
+api.add_router("/births", births_router, auth=JWTBearerTenant())
