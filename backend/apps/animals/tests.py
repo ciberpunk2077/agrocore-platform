@@ -13,6 +13,113 @@ from apps.lots.models import Lot
 from apps.organizations.models import Organization
 
 
+class AnimalParentCoherenceCharacterizationTests(TestCase):
+    """Characterize parental gender and species independently of business policy."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.organization = Organization.objects.create(
+            code="PARENT_COHERENCE", name="Parent coherence organization",
+        )
+        cls.bovine = Species.objects.create(code="TEST_BOVINE", name="Test bovine")
+        cls.porcine = Species.objects.create(code="TEST_PORCINE", name="Test porcine")
+        cls.bovine_breed = Breed.objects.create(
+            species=cls.bovine, code="TEST_BOVINE", name="Test bovine breed",
+        )
+        cls.porcine_breed = Breed.objects.create(
+            species=cls.porcine, code="TEST_PORCINE", name="Test porcine breed",
+        )
+        cls.female = Gender.objects.create(code="F", name="Test female parent")
+        cls.male = Gender.objects.create(code="M", name="Test male parent")
+        cls.status = AnimalStatus.objects.create(
+            code="PARENT_COHERENCE", name="Parent coherence status",
+        )
+
+    def make_animal(self, internal_id, species, breed, gender):
+        return Animal.objects.create(
+            organization=self.organization, species=species, breed=breed,
+            gender=gender, status=self.status, internal_id=internal_id,
+            is_active=True,
+        )
+
+    def assert_parent_link(self, child, field, parent):
+        self.assertEqual(getattr(child, f"{field}_id"), parent.pk)
+        persisted_parent = getattr(child, field)
+        self.assertEqual(persisted_parent.pk, parent.pk)
+        self.assertEqual(child.organization_id, self.organization.pk)
+        self.assertEqual(persisted_parent.organization_id, self.organization.pk)
+        self.assertIsNone(persisted_parent.mother_id)
+        self.assertIsNone(persisted_parent.father_id)
+        other_field = "father" if field == "mother" else "mother"
+        self.assertIsNone(getattr(child, f"{other_field}_id"))
+        self.assertEqual(child.breed.species_id, child.species_id)
+        self.assertEqual(persisted_parent.breed.species_id, persisted_parent.species_id)
+        return persisted_parent
+
+    def test_model_rejects_parent_with_incorrect_gender_for_role(self):
+        for field, gender, expected_code in (
+            ("mother", self.male, "invalid_mother_gender"),
+            ("father", self.female, "invalid_father_gender"),
+        ):
+            with self.subTest(parent=field):
+                parent = self.make_animal(
+                    f"GENDER_PARENT_{field}",
+                    self.bovine,
+                    self.bovine_breed,
+                    gender,
+                )
+                child = self.make_animal(
+                    f"GENDER_CHILD_{field}",
+                    self.bovine,
+                    self.bovine_breed,
+                    self.female,
+                )
+
+                setattr(child, field, parent)
+
+                with self.assertRaises(ValidationError) as clean_error:
+                    child.full_clean()
+
+                self.assertEqual(
+                    clean_error.exception.error_dict[field][0].code,
+                    expected_code,
+                )
+
+                with self.assertRaises(ValidationError) as save_error:
+                    child.save()
+
+                self.assertEqual(
+                    save_error.exception.error_dict[field][0].code,
+                    expected_code,
+                )
+
+                child.refresh_from_db()
+
+                self.assertIsNone(child.mother_id)
+                self.assertIsNone(child.father_id)
+
+    def test_model_persists_parent_from_different_species(self):
+        for field, gender, expected_code in (
+            ("mother", self.female, "F"), ("father", self.male, "M"),
+        ):
+            with self.subTest(parent=field):
+                parent = self.make_animal(
+                    f"SPECIES_PARENT_{field}", self.porcine, self.porcine_breed, gender,
+                )
+                child = self.make_animal(
+                    f"SPECIES_CHILD_{field}", self.bovine, self.bovine_breed, self.female,
+                )
+                setattr(child, field, parent)
+                child.full_clean()
+                child.save()
+                child.refresh_from_db()
+                persisted_parent = self.assert_parent_link(child, field, parent)
+                self.assertEqual(child.species_id, self.bovine.pk)
+                self.assertEqual(persisted_parent.species_id, self.porcine.pk)
+                self.assertEqual(persisted_parent.gender.code, expected_code)
+
+
 class AnimalParentOrganizationRegressionTests(TestCase):
     """P1: reject cross-organization parents in model and service writes."""
 

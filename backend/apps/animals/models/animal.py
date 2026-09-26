@@ -202,6 +202,37 @@ class Animal(AuditModel):
             if parent.organization_id != self.organization_id:
                 errors[field] = ValidationError(message, code="parent_organization")
 
+
+        for field, expected_gender, message, code in (
+            (
+                "mother",
+                "F",
+                "El animal seleccionado como madre debe ser una hembra.",
+                "invalid_mother_gender",
+            ),
+            (
+                "father",
+                "M",
+                "El animal seleccionado como padre debe ser un macho.",
+                "invalid_father_gender",
+            ),
+        ):
+            if getattr(self, f"{field}_id") is None:
+                continue
+
+            try:
+                parent = getattr(self, field)
+            except Animal.DoesNotExist:
+                # FK existence is checked by full_clean().
+                continue
+
+            if parent.gender.code != expected_gender:
+                errors[field] = ValidationError(
+                    message,
+                    code=code,
+                )
+
+
         try:
             self._validate_genealogy_cycles()
         except ValidationError as error:
