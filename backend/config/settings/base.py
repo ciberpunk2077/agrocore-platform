@@ -80,7 +80,6 @@ INSTALLED_APPS = [
     "apps.vaccinations.apps.VaccinationsConfig",
     "apps.timeline.apps.TimelineConfig",
     "apps.dashboard.apps.DashboardConfig",
-    "apps.reproduction.apps.ReproductionConfig",
     "apps.breeding.apps.BreedingConfig",
     "apps.pregnancy.apps.PregnancyConfig",
     "apps.births.apps.BirthsConfig",
