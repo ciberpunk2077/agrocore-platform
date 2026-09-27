@@ -34,11 +34,15 @@ from django.db.models import QuerySet
 from apps.organizations.models.organization import Organization
 
 
-def list_organizations() -> QuerySet[Organization]:
+def list_organizations(user) -> QuerySet[Organization]:
     """
-    Retorna todas las organizaciones.
+    Retorna las organizaciones activas accesibles por membresía activa.
     """
-    return Organization.objects.all()
+    return Organization.objects.filter(
+        is_active=True,
+        memberships__user=user,
+        memberships__is_active=True,
+    ).order_by("name", "id").distinct()
 
 
 def list_active_organizations() -> QuerySet[Organization]:
@@ -52,11 +56,13 @@ def list_active_organizations() -> QuerySet[Organization]:
 
 def get_organization_by_id(
     organization_id,
+    *,
+    user,
 ) -> Organization | None:
     """
     Busca una organización por UUID.
     """
-    return Organization.objects.filter(
+    return list_organizations(user).filter(
         id=organization_id
     ).first()
 

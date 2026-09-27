@@ -16,7 +16,7 @@ router = Router()
 )
 def list_organizations_endpoint(request):
 
-    return list_organizations()
+    return list_organizations(request.auth)
 
 
 @router.get(
@@ -29,7 +29,8 @@ def get_organization(
 ):
 
     organization = get_organization_by_id(
-        organization_id
+        organization_id,
+        user=request.auth,
     )
 
     if not organization:
