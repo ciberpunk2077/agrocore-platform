@@ -142,6 +142,11 @@ class BirthService:
         mother,
     ):
 
+        if pregnancy.status != PregnancyStatus.ACTIVE:
+            raise ValidationError(
+                "Solo se puede registrar un parto para una gestación activa."
+            )
+
         if pregnancy.animal_id != mother.id:
             raise ValidationError("La gestación no pertenece a la madre indicada.")
 
