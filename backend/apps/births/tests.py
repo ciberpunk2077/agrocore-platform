@@ -189,3 +189,41 @@ class BirthAutomaticCalfRegressionTests(TestCase):
         )
         self.pregnancy.refresh_from_db()
         self.assertEqual(self.pregnancy.status, PregnancyStatus.FINISHED)
+
+
+
+    def test_rejects_birth_for_finished_pregnancy(self):
+        self.pregnancy.status = PregnancyStatus.FINISHED
+        self.pregnancy.save(update_fields=["status"])
+
+        with self.assertRaises(ValidationError):
+            BirthService.create(
+                RequestContext(organization=self.organization),
+                self.make_payload(self.female.pk),
+            )
+
+        self.assertEqual(Birth.objects.count(), 0)
+
+        self.pregnancy.refresh_from_db()
+        self.assertEqual(
+            self.pregnancy.status,
+            PregnancyStatus.FINISHED,
+        )
+
+    def test_rejects_birth_for_aborted_pregnancy(self):
+        self.pregnancy.status = PregnancyStatus.ABORTED
+        self.pregnancy.save(update_fields=["status"])
+
+        with self.assertRaises(ValidationError):
+            BirthService.create(
+                RequestContext(organization=self.organization),
+                self.make_payload(self.female.pk),
+            )
+
+        self.assertEqual(Birth.objects.count(), 0)
+
+        self.pregnancy.refresh_from_db()
+        self.assertEqual(
+            self.pregnancy.status,
+            PregnancyStatus.ABORTED,
+        )

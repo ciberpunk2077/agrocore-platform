@@ -62,3 +62,19 @@ def create_pregnancy(
         request.context,
         payload,
     )
+
+
+@router.post(
+    "/{pregnancy_id}/abort",
+    response=PregnancyResponseSchema,
+    summary="Abort Pregnancy",
+)
+def abort_pregnancy(
+    request,
+    pregnancy_id: UUID,
+):
+
+    return PregnancyService.abort(
+        request.context,
+        pregnancy_id,
+    )

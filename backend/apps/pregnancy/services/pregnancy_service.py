@@ -5,7 +5,7 @@ from django.core.exceptions import (
 
 from apps.animals.models import Animal
 from apps.breeding.models import BreedingEvent
-from apps.pregnancy.models import Pregnancy
+from apps.pregnancy.models import Pregnancy, PregnancyStatus
 
 
 class PregnancyService:
@@ -21,6 +21,11 @@ class PregnancyService:
 
             PregnancyService._validate_relations(
                 context,
+                relations,
+            )
+
+            PregnancyService._validate_pregnancy_data(
+                data,
                 relations,
             )
 
@@ -43,6 +48,40 @@ class PregnancyService:
             raise ValidationError(
                 "Uno de los registros relacionados no existe."
             )
+
+    @staticmethod
+    def abort(context, pregnancy_id):
+
+        try:
+            pregnancy = Pregnancy.objects.get(
+                id=pregnancy_id,
+                is_active=True,
+            )
+        except Pregnancy.DoesNotExist:
+            raise ValidationError(
+                "La gestación no existe."
+            )
+
+        if pregnancy.organization_id != context.organization.id:
+            raise ValidationError(
+                "La gestación no pertenece a la organización."
+            )
+
+        if pregnancy.status != PregnancyStatus.ACTIVE:
+            raise ValidationError(
+                "Solo se puede abortar una gestación activa."
+            )
+
+        pregnancy.status = PregnancyStatus.ABORTED
+        pregnancy.full_clean()
+        pregnancy.save(
+            update_fields=[
+                "status",
+                "updated_at",
+            ]
+        )
+
+        return pregnancy
 
 
     @staticmethod
@@ -89,4 +128,29 @@ class PregnancyService:
         ).exists():
             raise ValidationError(
                 "Este evento reproductivo ya tiene una gestación registrada."
+            )
+
+
+    @staticmethod
+    def _validate_pregnancy_data(
+        data,
+        relations,
+    ):
+        breeding = relations["breeding"]
+
+        if not data.confirmed:
+            raise ValidationError(
+                "Solo se puede registrar una gestación confirmada."
+            )
+
+        if data.diagnosis_date < breeding.date:
+            raise ValidationError(
+                "La fecha de diagnóstico no puede ser anterior "
+                "al evento reproductivo."
+            )
+
+        if data.expected_birth <= data.diagnosis_date:
+            raise ValidationError(
+                "La fecha estimada de parto debe ser posterior "
+                "a la fecha de diagnóstico."
             )
