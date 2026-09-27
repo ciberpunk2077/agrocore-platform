@@ -259,3 +259,97 @@ class PregnancyServiceCharacterizationTests(TestCase):
             )
 
         self.assertEqual(Pregnancy.objects.count(), 0)
+
+
+    def test_abort_active_pregnancy(self):
+        pregnancy = PregnancyService.create(
+            RequestContext(organization=self.organization),
+            self.make_payload(),
+        )
+
+        result = PregnancyService.abort(
+            RequestContext(organization=self.organization),
+            pregnancy.pk,
+        )
+
+        pregnancy.refresh_from_db()
+
+        self.assertEqual(
+            pregnancy.status,
+            PregnancyStatus.ABORTED,
+        )
+        self.assertEqual(
+            result.pk,
+            pregnancy.pk,
+        )
+
+    def test_abort_rejects_finished_pregnancy(self):
+        pregnancy = PregnancyService.create(
+            RequestContext(organization=self.organization),
+            self.make_payload(),
+        )
+
+        pregnancy.status = PregnancyStatus.FINISHED
+        pregnancy.save(update_fields=["status"])
+
+        with self.assertRaises(ValidationError):
+            PregnancyService.abort(
+                RequestContext(organization=self.organization),
+                pregnancy.pk,
+            )
+
+        pregnancy.refresh_from_db()
+
+        self.assertEqual(
+            pregnancy.status,
+            PregnancyStatus.FINISHED,
+        )
+
+    def test_abort_rejects_pregnancy_from_other_organization(self):
+        pregnancy = Pregnancy.objects.create(
+            organization=self.other_organization,
+            breeding=self.other_breeding,
+            animal=self.other_animal,
+            diagnosis_date=date(2025, 2, 1),
+            expected_birth=date(2025, 10, 1),
+            confirmed=True,
+            status=PregnancyStatus.ACTIVE,
+        )
+
+        with self.assertRaises(ValidationError):
+            PregnancyService.abort(
+                RequestContext(organization=self.organization),
+                pregnancy.pk,
+            )
+
+        pregnancy.refresh_from_db()
+
+        self.assertEqual(
+            pregnancy.status,
+            PregnancyStatus.ACTIVE,
+        )
+
+
+    def test_abort_rejects_already_aborted_pregnancy(self):
+        pregnancy = PregnancyService.create(
+            RequestContext(organization=self.organization),
+            self.make_payload(),
+        )
+
+        PregnancyService.abort(
+            RequestContext(organization=self.organization),
+            pregnancy.pk,
+        )
+
+        with self.assertRaises(ValidationError):
+            PregnancyService.abort(
+                RequestContext(organization=self.organization),
+                pregnancy.pk,
+            )
+
+        pregnancy.refresh_from_db()
+
+        self.assertEqual(
+            pregnancy.status,
+            PregnancyStatus.ABORTED,
+        )

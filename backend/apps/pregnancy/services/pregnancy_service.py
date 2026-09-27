@@ -5,7 +5,7 @@ from django.core.exceptions import (
 
 from apps.animals.models import Animal
 from apps.breeding.models import BreedingEvent
-from apps.pregnancy.models import Pregnancy
+from apps.pregnancy.models import Pregnancy, PregnancyStatus
 
 
 class PregnancyService:
@@ -48,6 +48,40 @@ class PregnancyService:
             raise ValidationError(
                 "Uno de los registros relacionados no existe."
             )
+
+    @staticmethod
+    def abort(context, pregnancy_id):
+
+        try:
+            pregnancy = Pregnancy.objects.get(
+                id=pregnancy_id,
+                is_active=True,
+            )
+        except Pregnancy.DoesNotExist:
+            raise ValidationError(
+                "La gestación no existe."
+            )
+
+        if pregnancy.organization_id != context.organization.id:
+            raise ValidationError(
+                "La gestación no pertenece a la organización."
+            )
+
+        if pregnancy.status != PregnancyStatus.ACTIVE:
+            raise ValidationError(
+                "Solo se puede abortar una gestación activa."
+            )
+
+        pregnancy.status = PregnancyStatus.ABORTED
+        pregnancy.full_clean()
+        pregnancy.save(
+            update_fields=[
+                "status",
+                "updated_at",
+            ]
+        )
+
+        return pregnancy
 
 
     @staticmethod
