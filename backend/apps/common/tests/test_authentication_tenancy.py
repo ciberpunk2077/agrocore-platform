@@ -1,10 +1,12 @@
 from unittest.mock import patch
 from uuid import uuid4
 
+import jwt
+from django.conf import settings
 from django.test import TestCase
 
 from apps.accounts.models import Membership, User
-from apps.accounts.services.jwt import create_access_token
+from apps.accounts.services.jwt import create_access_token, create_refresh_token, decode_token
 from apps.common.tenancy.context import get_current_organization
 from apps.organizations.models import Organization
 
@@ -134,6 +136,45 @@ class AuthenticationTenancyIntegrationTests(TestCase):
                     endpoint_getter.assert_not_called()
 
                 self.assertIsNone(get_current_organization())
+
+    def assert_non_access_bearer_rejected(self, token):
+        for with_session in (False, True):
+            with self.subTest(with_session=with_session):
+                self.client.logout()
+                if with_session:
+                    self.client.force_login(self.user_a)
+
+                with patch(
+                    "apps.common.api.endpoints.get_current_organization",
+                    wraps=get_current_organization,
+                ) as endpoint_getter:
+                    response = self.client.get(
+                        "/api/common/tenant",
+                        HTTP_AUTHORIZATION=f"Bearer {token}",
+                    )
+
+                    self.assertEqual(response.status_code, 401)
+                    self.assertEqual(response.json(), {"detail": "Unauthorized"})
+                    endpoint_getter.assert_not_called()
+
+                self.assertIsNone(getattr(response.wsgi_request, "auth", None))
+                if not with_session:
+                    self.assertFalse(response.wsgi_request.user.is_authenticated)
+                    self.assertIsNone(response.wsgi_request.context)
+                self.assertIsNone(get_current_organization())
+
+    def test_refresh_bearer_is_rejected_with_and_without_session(self):
+        self.assert_non_access_bearer_rejected(create_refresh_token(self.user_a))
+
+    def test_bearer_without_type_is_rejected_with_and_without_session(self):
+        payload = decode_token(create_access_token(self.user_a))
+        del payload["type"]
+        token = jwt.encode(
+            payload,
+            settings.JWT["SECRET_KEY"],
+            algorithm=settings.JWT["ALGORITHM"],
+        )
+        self.assert_non_access_bearer_rejected(token)
 
     def test_public_health_allows_conflicting_credentials(self):
         self.client.force_login(self.user_a)

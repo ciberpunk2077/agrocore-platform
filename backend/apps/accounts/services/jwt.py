@@ -66,10 +66,13 @@ def decode_token(token: str):
 
 def get_user_from_token(token: str):
     """
-    Obtiene el usuario a partir de un JWT.
+    Obtiene el usuario únicamente a partir de un JWT de acceso.
     """
 
     payload = decode_token(token)
+
+    if payload.get("type") != "access":
+        return None
 
     return User.objects.filter(
         id=payload["sub"],
