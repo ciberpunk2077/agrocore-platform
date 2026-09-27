@@ -24,6 +24,11 @@ class PregnancyService:
                 relations,
             )
 
+            PregnancyService._validate_pregnancy_data(
+                data,
+                relations,
+            )
+
             pregnancy = Pregnancy(
                 organization=context.organization,
                 breeding=relations["breeding"],
@@ -89,4 +94,29 @@ class PregnancyService:
         ).exists():
             raise ValidationError(
                 "Este evento reproductivo ya tiene una gestación registrada."
+            )
+
+
+    @staticmethod
+    def _validate_pregnancy_data(
+        data,
+        relations,
+    ):
+        breeding = relations["breeding"]
+
+        if not data.confirmed:
+            raise ValidationError(
+                "Solo se puede registrar una gestación confirmada."
+            )
+
+        if data.diagnosis_date < breeding.date:
+            raise ValidationError(
+                "La fecha de diagnóstico no puede ser anterior "
+                "al evento reproductivo."
+            )
+
+        if data.expected_birth <= data.diagnosis_date:
+            raise ValidationError(
+                "La fecha estimada de parto debe ser posterior "
+                "a la fecha de diagnóstico."
             )

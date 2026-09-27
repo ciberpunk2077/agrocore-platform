@@ -218,57 +218,44 @@ class PregnancyServiceCharacterizationTests(TestCase):
 
         self.assertEqual(Pregnancy.objects.count(), 1)
 
-    def test_confirmed_false_is_persisted_as_active(self):
-        pregnancy = PregnancyService.create(
-            RequestContext(organization=self.organization),
-            self.make_payload(
-                confirmed=False,
-            ),
+
+
+    def test_create_rejects_unconfirmed_pregnancy(self):
+        payload = self.make_payload(
+            confirmed=False,
         )
 
-        pregnancy.refresh_from_db()
+        with self.assertRaises(ValidationError):
+            PregnancyService.create(
+                RequestContext(organization=self.organization),
+                payload,
+            )
 
-        self.assertFalse(pregnancy.confirmed)
-        self.assertEqual(
-            pregnancy.status,
-            PregnancyStatus.ACTIVE,
+        self.assertEqual(Pregnancy.objects.count(), 0)
+
+    def test_create_rejects_diagnosis_before_breeding_date(self):
+        payload = self.make_payload(
+            diagnosis_date=date(2024, 12, 1),
         )
 
-    def test_diagnosis_before_breeding_date_is_currently_accepted(self):
-        pregnancy = PregnancyService.create(
-            RequestContext(organization=self.organization),
-            self.make_payload(
-                diagnosis_date=date(2024, 12, 1),
-            ),
+        with self.assertRaises(ValidationError):
+            PregnancyService.create(
+                RequestContext(organization=self.organization),
+                payload,
+            )
+
+        self.assertEqual(Pregnancy.objects.count(), 0)
+
+    def test_create_rejects_expected_birth_not_after_diagnosis(self):
+        payload = self.make_payload(
+            diagnosis_date=date(2025, 2, 1),
+            expected_birth=date(2025, 1, 15),
         )
 
-        pregnancy.refresh_from_db()
+        with self.assertRaises(ValidationError):
+            PregnancyService.create(
+                RequestContext(organization=self.organization),
+                payload,
+            )
 
-        self.assertEqual(
-            pregnancy.diagnosis_date,
-            date(2024, 12, 1),
-        )
-        self.assertEqual(
-            pregnancy.breeding.date,
-            date(2025, 1, 1),
-        )
-
-    def test_expected_birth_before_diagnosis_is_currently_accepted(self):
-        pregnancy = PregnancyService.create(
-            RequestContext(organization=self.organization),
-            self.make_payload(
-                diagnosis_date=date(2025, 2, 1),
-                expected_birth=date(2025, 1, 15),
-            ),
-        )
-
-        pregnancy.refresh_from_db()
-
-        self.assertEqual(
-            pregnancy.expected_birth,
-            date(2025, 1, 15),
-        )
-        self.assertEqual(
-            pregnancy.diagnosis_date,
-            date(2025, 2, 1),
-        )
+        self.assertEqual(Pregnancy.objects.count(), 0)
