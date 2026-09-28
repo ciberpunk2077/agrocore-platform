@@ -32,22 +32,32 @@ class AnimalCreateSchema(Schema):
 
 class AnimalResponseSchema(Schema):
     id: UUID
-    internal_id: str
-
+    internal_id: str | None
     official_tag: str | None
     electronic_tag: str | None
-
     name: str | None
 
+    species_id: UUID
     species: str
+    breed_id: UUID
     breed: str
+    gender_id: UUID
     gender: str
+    status_id: UUID
     status: str
 
+    farm_id: UUID | None
     farm: str | None
+    lot_id: UUID | None
     lot: str | None
 
+    birth_date: date | None
+    birth_weight: Decimal | None
+    mother_id: UUID | None
+    father_id: UUID | None
+    notes: str | None
     is_active: bool
+
 
 class AnimalUpdateSchema(Schema):
     farm_id: UUID

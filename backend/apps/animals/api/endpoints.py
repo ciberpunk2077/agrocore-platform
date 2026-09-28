@@ -8,10 +8,39 @@ from apps.animals.api.schemas import (
     AnimalResponseSchema,
     AnimalUpdateSchema,
 )
+from apps.animals.models import Animal
 from apps.animals.services import AnimalService
 from apps.animals.selectors import AnimalSelector
 
 router = Router()
+
+
+def _animal_response(animal: Animal) -> AnimalResponseSchema:
+    return AnimalResponseSchema(
+        id=animal.id,
+        internal_id=animal.internal_id,
+        official_tag=animal.official_tag,
+        electronic_tag=animal.electronic_tag,
+        name=animal.name,
+        species_id=animal.species_id,
+        species=animal.species.name,
+        breed_id=animal.breed_id,
+        breed=animal.breed.name,
+        gender_id=animal.gender_id,
+        gender=animal.gender.name,
+        status_id=animal.status_id,
+        status=animal.status.name,
+        farm_id=animal.farm_id,
+        farm=animal.farm.name if animal.farm else None,
+        lot_id=animal.lot_id,
+        lot=animal.lot.name if animal.lot else None,
+        birth_date=animal.birth_date,
+        birth_weight=animal.birth_weight,
+        mother_id=animal.mother_id,
+        father_id=animal.father_id,
+        notes=animal.notes,
+        is_active=animal.is_active,
+    )
 
 
 @router.get(
@@ -25,20 +54,7 @@ def list_animals(request):
     )
 
     return [
-        AnimalResponseSchema(
-            id=animal.id,
-            internal_id=animal.internal_id,
-            official_tag=animal.official_tag,
-            electronic_tag=animal.electronic_tag,
-            name=animal.name,
-            species=animal.species.name,
-            breed=animal.breed.name,
-            gender=animal.gender.name,
-            status=animal.status.name,
-            farm=animal.farm.name if animal.farm else None,
-            lot=animal.lot.name if animal.lot else None,
-            is_active=animal.is_active,
-        )
+        _animal_response(animal)
         for animal in animals
     ]
 
@@ -56,20 +72,7 @@ def get_animal(request, animal_id: UUID):
     if animal is None:
         raise HttpError(404, "Animal no encontrado.")
 
-    return AnimalResponseSchema(
-        id=animal.id,
-        internal_id=animal.internal_id,
-        official_tag=animal.official_tag,
-        electronic_tag=animal.electronic_tag,
-        name=animal.name,
-        species=animal.species.name,
-        breed=animal.breed.name,
-        gender=animal.gender.name,
-        status=animal.status.name,
-        farm=animal.farm.name if animal.farm else None,
-        lot=animal.lot.name if animal.lot else None,
-        is_active=animal.is_active,
-    )
+    return _animal_response(animal)
 
 @router.post(
     "/",
@@ -80,20 +83,7 @@ def create_animal(request, payload: AnimalCreateSchema):
     # animal = AnimalService.create(payload)
     animal = AnimalService.create(request.context, payload,)
 
-    return AnimalResponseSchema(
-        id=animal.id,
-        internal_id=animal.internal_id,
-        official_tag=animal.official_tag,
-        electronic_tag=animal.electronic_tag,
-        name=animal.name,
-        species=animal.species.name,
-        breed=animal.breed.name,
-        gender=animal.gender.name,
-        status=animal.status.name,
-        farm=animal.farm.name if animal.farm else None,
-        lot=animal.lot.name if animal.lot else None,
-        is_active=animal.is_active,
-    )
+    return _animal_response(animal)
 
 @router.put(
     "/{animal_id}",
@@ -118,20 +108,7 @@ def update_animal(request, animal_id: UUID, payload: AnimalUpdateSchema):
         payload,
     )
 
-    return AnimalResponseSchema(
-        id=animal.id,
-        internal_id=animal.internal_id,
-        official_tag=animal.official_tag,
-        electronic_tag=animal.electronic_tag,
-        name=animal.name,
-        species=animal.species.name,
-        breed=animal.breed.name,
-        gender=animal.gender.name,
-        status=animal.status.name,
-        farm=animal.farm.name if animal.farm else None,
-        lot=animal.lot.name if animal.lot else None,
-        is_active=animal.is_active,
-    )
+    return _animal_response(animal)
 
 
 @router.delete(

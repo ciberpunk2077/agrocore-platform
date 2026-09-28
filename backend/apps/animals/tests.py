@@ -1,3 +1,10 @@
+from datetime import date
+from decimal import Decimal
+from uuid import UUID
+
+from apps.accounts.models import Membership, User
+from apps.accounts.services.jwt import create_access_token
+
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
@@ -392,3 +399,159 @@ class AnimalGenealogyRegressionTests(TestCase):
 
         for animal in (a, b, c):
             animal.full_clean()
+
+
+class AnimalAPIContractTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.organization = Organization.objects.create(code="CONTRACT", name="Contract")
+        cls.other_organization = Organization.objects.create(code="OTHER", name="Other")
+        cls.user = User.objects.create_user(email="animal-contract@example.com")
+        Membership.objects.create(
+            user=cls.user, organization=cls.organization,
+            role=Membership.Role.OWNER, is_default=True,
+        )
+        cls.species = Species.objects.create(code="CONTRACT", name="Contract species")
+        cls.breed = Breed.objects.create(
+            species=cls.species, code="CONTRACT", name="Contract breed",
+        )
+        cls.female = Gender.objects.create(code="F", name="Contract female")
+        cls.male = Gender.objects.create(code="M", name="Contract male")
+        cls.status = AnimalStatus.objects.create(code="CONTRACT", name="Contract status")
+        farm_type = FarmType.objects.create(code="CONTRACT", name="Contract type")
+        cls.farm = Farm.objects.create(
+            organization=cls.organization, farm_type=farm_type,
+            code="CONTRACT", name="Contract farm",
+        )
+        cls.lot = Lot.objects.create(
+            organization=cls.organization, farm=cls.farm,
+            code="CONTRACT", name="Contract lot",
+        )
+        fields = dict(
+            organization=cls.organization, species=cls.species, breed=cls.breed,
+            status=cls.status, gender=cls.female,
+        )
+        cls.mother = Animal.objects.create(**fields, internal_id="MOTHER")
+        cls.father = Animal.objects.create(
+            **dict(fields, gender=cls.male), internal_id="FATHER",
+        )
+        cls.animal = Animal.objects.create(
+            **fields, internal_id="CHILD", farm=cls.farm, lot=cls.lot,
+            official_tag="TAG", electronic_tag="RFID", name="Calf",
+            birth_date=date(2024, 1, 2), birth_weight=Decimal("32.75"),
+            mother=cls.mother, father=cls.father, notes="Birth notes",
+        )
+        cls.other_animal = Animal.objects.create(
+            **dict(fields, organization=cls.other_organization), internal_id="OTHER",
+        )
+
+    def setUp(self):
+        self.headers = {"HTTP_AUTHORIZATION": f"Bearer {create_access_token(self.user)}"}
+
+    def request(self, method, path, data=None):
+        return getattr(self.client, method)(
+            path, data=data, content_type="application/json", **self.headers,
+        )
+
+    def payload(self, **changes):
+        data = {
+            "farm_id": str(self.farm.pk), "lot_id": str(self.lot.pk),
+            "species_id": str(self.species.pk), "breed_id": str(self.breed.pk),
+            "gender_id": str(self.female.pk), "status_id": str(self.status.pk),
+            "internal_id": "NEW", "official_tag": "NEW-TAG",
+            "electronic_tag": "NEW-RFID", "name": "New calf",
+            "birth_date": "2024-02-03", "birth_weight": "41.25",
+            "mother_id": str(self.mother.pk), "father_id": str(self.father.pk),
+            "notes": "New notes",
+        }
+        data.update(changes)
+        return data
+
+    def assert_contract(self, data, animal):
+        expected = {
+            "id", "internal_id", "official_tag", "electronic_tag", "name",
+            "species_id", "species", "breed_id", "breed", "gender_id", "gender",
+            "status_id", "status", "farm_id", "farm", "lot_id", "lot",
+            "birth_date", "birth_weight", "mother_id", "father_id", "notes", "is_active",
+        }
+        self.assertEqual(set(data), expected)
+        self.assertEqual(UUID(data["id"]), animal.pk)
+        for field in ("internal_id", "official_tag", "electronic_tag", "name", "notes", "is_active"):
+            self.assertEqual(data[field], getattr(animal, field))
+        for field in ("species", "breed", "gender", "status", "farm", "lot", "mother", "father"):
+            relation_id = getattr(animal, f"{field}_id")
+            actual = data[f"{field}_id"]
+            self.assertEqual(UUID(actual) if actual is not None else None, relation_id)
+            if field not in ("mother", "father"):
+                relation = getattr(animal, field)
+                self.assertEqual(data[field], relation.name if relation else None)
+        self.assertEqual(data["birth_date"], animal.birth_date.isoformat() if animal.birth_date else None)
+        weight = data["birth_weight"]
+        self.assertEqual(Decimal(str(weight)) if weight is not None else None, animal.birth_weight)
+
+    def test_detail_returns_complete_contract(self):
+        response = self.request("get", f"/api/animals/{self.animal.pk}")
+        self.assertEqual(response.status_code, 200)
+        self.assert_contract(response.json(), self.animal)
+
+    def test_detail_and_list_support_nullable_fields(self):
+        self.mother.internal_id = None
+        self.mother.save()
+        response = self.request("get", f"/api/animals/{self.mother.pk}")
+        self.assertEqual(response.status_code, 200)
+        self.assert_contract(response.json(), self.mother)
+        response = self.request("get", "/api/animals/")
+        self.assertEqual(response.status_code, 200)
+        data = next(item for item in response.json() if item["id"] == str(self.mother.pk))
+        self.assert_contract(data, self.mother)
+
+    def test_list_returns_complete_contract_and_isolates_tenant(self):
+        response = self.request("get", "/api/animals/")
+        self.assertEqual(response.status_code, 200)
+        animals = {str(animal.pk): animal for animal in (self.animal, self.mother, self.father)}
+        self.assertEqual({item["id"] for item in response.json()}, set(animals))
+        for item in response.json():
+            self.assert_contract(item, animals[item["id"]])
+
+    def test_post_returns_complete_persisted_contract(self):
+        payload = self.payload()
+        response = self.request("post", "/api/animals/", payload)
+        self.assertEqual(response.status_code, 200)
+        animal = Animal.objects.get(pk=response.json()["id"])
+        self.assertEqual(animal.organization_id, self.organization.pk)
+        self.assert_contract(response.json(), animal)
+        for field, value in payload.items():
+            self.assertEqual(response.json()[field], value)
+
+    def test_put_returns_updated_complete_contract(self):
+        payload = self.payload(gender_id=str(self.male.pk), mother_id=None, father_id=None)
+        response = self.request("put", f"/api/animals/{self.animal.pk}", payload)
+        self.assertEqual(response.status_code, 200)
+        self.animal.refresh_from_db()
+        self.assert_contract(response.json(), self.animal)
+        for field, value in payload.items():
+            self.assertEqual(response.json()[field], value)
+        detail = self.request("get", f"/api/animals/{self.animal.pk}")
+        self.assertEqual(detail.json(), response.json())
+
+    def test_post_and_put_return_optional_nulls_and_empty_strings(self):
+        payload = self.payload(
+            birth_date=None, birth_weight=None, mother_id=None, father_id=None,
+            official_tag="", electronic_tag="", name="", notes="",
+        )
+        for method, path in (("post", "/api/animals/"), ("put", f"/api/animals/{self.animal.pk}")):
+            with self.subTest(method=method):
+                payload["internal_id"] = f"EMPTY-{method}"
+                response = self.request(method, path, payload)
+                self.assertEqual(response.status_code, 200)
+                self.assert_contract(response.json(), Animal.objects.get(pk=response.json()["id"]))
+                for field, value in payload.items():
+                    self.assertEqual(response.json()[field], value)
+
+    def test_other_tenant_detail_and_update_remain_inaccessible(self):
+        path = f"/api/animals/{self.other_animal.pk}"
+        self.assertEqual(self.request("get", path).status_code, 404)
+        self.assertEqual(self.request("put", path, self.payload()).status_code, 404)
+        self.other_animal.refresh_from_db()
+        self.assertEqual(self.other_animal.internal_id, "OTHER")
+        self.assertEqual(self.other_animal.organization_id, self.other_organization.pk)
