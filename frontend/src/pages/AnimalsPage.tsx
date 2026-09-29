@@ -5,6 +5,7 @@ import { getAnimals } from '../animals/animals.service'
 import type { Animal } from '../animals/types'
 import { getSession } from '../auth/session'
 import './AnimalsPage.css'
+import { Link } from 'react-router-dom'
 
 function AnimalsPage() {
   const [animals, setAnimals] = useState<Animal[]>([])
@@ -64,6 +65,9 @@ function AnimalsPage() {
         <h1>Animales</h1>
         <p>Gestión y consulta del inventario ganadero</p>
       </header>
+      <Link to="/animals/new">
+        Nuevo animal
+      </Link>
 
       {animals.length === 0 ? (
         <p>No hay animales registrados.</p>
