@@ -15,7 +15,7 @@ import {
   getLots,
   getSpecies,
 } from '../../animal-options.service'
-import { createAnimal, getAnimals } from '../../animals.service'
+import { createAnimal, getAnimals, updateAnimal, } from '../../animals.service'
 import type {
   Animal,
   AnimalStatus,
@@ -27,7 +27,11 @@ import type {
   Species,
 } from '../../types'
 
-function AnimalForm() {
+interface AnimalFormProps {
+  animal?: Animal
+}
+
+function AnimalForm({ animal }: AnimalFormProps) {
   const navigate = useNavigate()
 
   const [species, setSpecies] = useState<Species[]>([])
@@ -38,27 +42,30 @@ function AnimalForm() {
   const [lots, setLots] = useState<Lot[]>([])
   const [animals, setAnimals] = useState<Animal[]>([])
 
-  const [internalId, setInternalId] = useState('')
-  const [name, setName] = useState('')
-  const [officialTag, setOfficialTag] = useState('')
-  const [electronicTag, setElectronicTag] = useState('')
+  const [internalId, setInternalId] = useState(animal?.internal_id ?? '')
+  const [name, setName] = useState(animal?.name ?? '')
+  const [officialTag, setOfficialTag] = useState(animal?.official_tag ?? '')
+  const [electronicTag, setElectronicTag] = useState(
+    animal?.electronic_tag ?? '',
+  )
 
-  const [speciesId, setSpeciesId] = useState('')
-  const [breedId, setBreedId] = useState('')
-  const [genderId, setGenderId] = useState('')
-  const [statusId, setStatusId] = useState('')
+  const [speciesId, setSpeciesId] = useState(animal?.species_id ?? '')
+  const [breedId, setBreedId] = useState(animal?.breed_id ?? '')
+  const [genderId, setGenderId] = useState(animal?.gender_id ?? '')
+  const [statusId, setStatusId] = useState(animal?.status_id ?? '')
 
-  const [farmId, setFarmId] = useState('')
-  const [lotId, setLotId] = useState('')
+  const [farmId, setFarmId] = useState(animal?.farm_id ?? '')
+  const [lotId, setLotId] = useState(animal?.lot_id ?? '')
 
-  const [birthDate, setBirthDate] = useState('')
-  const [birthWeight, setBirthWeight] = useState('')
+  const [birthDate, setBirthDate] = useState(animal?.birth_date ?? '')
+  const [birthWeight, setBirthWeight] = useState(
+    animal?.birth_weight ?? '',
+  )
 
-  const [motherId, setMotherId] = useState('')
-  const [fatherId, setFatherId] = useState('')
+  const [motherId, setMotherId] = useState(animal?.mother_id ?? '')
+  const [fatherId, setFatherId] = useState(animal?.father_id ?? '')
 
-  const [notes, setNotes] = useState('')
-
+  const [notes, setNotes] = useState(animal?.notes ?? '')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -147,23 +154,25 @@ function AnimalForm() {
   const possibleMothers = useMemo(
     () =>
       animals.filter(
-        (animal) =>
-          animal.species_id === speciesId &&
-          animal.gender_id === femaleGenderId &&
-          animal.is_active,
+        (candidate) =>
+          candidate.id !== animal?.id &&
+          candidate.species_id === speciesId &&
+          candidate.gender_id === femaleGenderId &&
+          candidate.is_active,
       ),
-    [animals, femaleGenderId, speciesId],
+    [animal?.id, animals, femaleGenderId, speciesId],
   )
 
   const possibleFathers = useMemo(
     () =>
       animals.filter(
-        (animal) =>
-          animal.species_id === speciesId &&
-          animal.gender_id === maleGenderId &&
-          animal.is_active,
+        (candidate) =>
+          candidate.id !== animal?.id &&
+          candidate.species_id === speciesId &&
+          candidate.gender_id === maleGenderId &&
+          candidate.is_active,
       ),
-    [animals, maleGenderId, speciesId],
+    [animal?.id, animals, maleGenderId, speciesId],
   )
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -199,11 +208,17 @@ function AnimalForm() {
     }
 
     try {
-      const createdAnimal = await createAnimal(payload, session.access)
+      const savedAnimal = animal
+        ? await updateAnimal(animal.id, payload, session.access)
+        : await createAnimal(payload, session.access)
 
-      navigate(`/animals/${createdAnimal.id}`)
+      navigate(`/animals/${savedAnimal.id}`)
     } catch {
-      setError('No fue posible registrar el animal.')
+      setError(
+        animal
+          ? 'No fue posible actualizar el animal.'
+          : 'No fue posible registrar el animal.',
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -440,7 +455,7 @@ function AnimalForm() {
       {error ? <p>{error}</p> : null}
 
       <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? 'Guardando...' : 'Guardar animal'}
+        {isSubmitting ? 'Guardando...' : animal ? 'Guardar cambios' : 'Guardar animal'}
       </button>
     </form>
   )
