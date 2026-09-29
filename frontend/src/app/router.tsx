@@ -2,6 +2,8 @@ import { Navigate, createBrowserRouter } from 'react-router-dom'
 
 import ProtectedRoute from '../auth/ProtectedRoute'
 import PublicOnlyRoute from '../auth/PublicOnlyRoute'
+import AppLayout from '../layouts/AppLayout'
+import AnimalsPage from '../pages/AnimalsPage'
 import DashboardPage from '../pages/DashboardPage'
 import LoginPage from '../pages/LoginPage'
 
@@ -23,8 +25,17 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       {
-        path: '/dashboard',
-        element: <DashboardPage />,
+        element: <AppLayout />,
+        children: [
+          {
+            path: '/dashboard',
+            element: <DashboardPage />,
+          },
+          {
+            path: '/animals',
+            element: <AnimalsPage />,
+          },
+        ],
       },
     ],
   },
