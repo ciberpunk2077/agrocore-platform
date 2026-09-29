@@ -1,0 +1,91 @@
+.weight-form {
+    max-width: 1000px;
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.weight-form h2 {
+    margin: 0 0 16px;
+    color: #0f172a;
+    font-size: 1.25rem;
+}
+
+.weight-form fieldset {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.weight-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.weight-form label {
+    color: #64748b;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.weight-form input,
+.weight-form select,
+.weight-form textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    color: #0f172a;
+    background: #ffffff;
+    font: inherit;
+}
+
+.weight-form textarea {
+    resize: vertical;
+}
+
+.weight-form__notes {
+    grid-column: 1 / -1;
+}
+
+.weight-form button {
+    justify-self: start;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 6px;
+    background: #047857;
+    color: #ffffff;
+    font: inherit;
+    cursor: pointer;
+}
+
+.weight-form fieldset:disabled button {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.weight-form p {
+    color: #64748b;
+}
+
+.weight-form .weight-form__error {
+    color: #b91c1c;
+}
+
+.weight-form .weight-form__success {
+    color: #047857;
+}
+
+@media (max-width: 700px) {
+    .weight-form fieldset {
+        grid-template-columns: 1fr;
+    }
+}

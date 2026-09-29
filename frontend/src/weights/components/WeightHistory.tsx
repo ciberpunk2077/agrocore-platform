@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { getSession } from '../../auth/session'
-import {
-  getAnimalWeightHistory,
-  getWeighingMethods,
-} from '../weights.service'
+import { getAnimalWeightHistory } from '../weights.service'
 import type {
   WeightHistory as WeightHistoryItem,
   WeighingMethod,
@@ -13,6 +10,7 @@ import './WeightHistory.css'
 
 interface WeightHistoryProps {
   animalId: string
+  methods: WeighingMethod[]
 }
 
 function formatDate(date: string): string {
@@ -25,9 +23,8 @@ function formatDate(date: string): string {
   return `${day}/${month}/${year}`
 }
 
-function WeightHistory({ animalId }: WeightHistoryProps) {
+function WeightHistory({ animalId, methods }: WeightHistoryProps) {
   const [weights, setWeights] = useState<WeightHistoryItem[]>([])
-  const [methods, setMethods] = useState<WeighingMethod[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,14 +44,10 @@ function WeightHistory({ animalId }: WeightHistoryProps) {
       }
 
       try {
-        const [weightHistory, weighingMethods] = await Promise.all([
-          getAnimalWeightHistory(animalId, session.access),
-          getWeighingMethods(session.access),
-        ])
+        const weightHistory = await getAnimalWeightHistory(animalId, session.access)
 
         if (isActive) {
           setWeights(weightHistory)
-          setMethods(weighingMethods)
         }
       } catch {
         if (isActive) {
