@@ -5,6 +5,7 @@ import { getAnimal } from '../animals/animals.service'
 import type { Animal } from '../animals/types'
 import { getSession } from '../auth/session'
 import './AnimalDetailPage.css'
+import WeightHistory from '../weights/components/WeightHistory'
 
 function getAnimalIdentification(animal: Animal): string {
   return (
@@ -169,6 +170,7 @@ function AnimalDetailPage() {
           </div>
         </dl>
       </div>
+      <WeightHistory animalId={animal.id} />
     </section>
   )
 
