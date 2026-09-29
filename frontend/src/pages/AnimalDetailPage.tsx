@@ -89,8 +89,17 @@ function AnimalDetailPage() {
       </Link>
 
       <header className="animal-detail__header">
-        <h1>{getAnimalIdentification(animal)}</h1>
-        <p>Información general del animal</p>
+        <div>
+          <h1>{getAnimalIdentification(animal)}</h1>
+          <p>Información general del animal</p>
+        </div>
+
+        <Link
+          className="animal-detail__edit"
+          to={`/animals/${animal.id}/edit`}
+        >
+          Editar animal
+        </Link>
       </header>
 
       <div className="animal-detail__card">

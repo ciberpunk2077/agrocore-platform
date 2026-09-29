@@ -8,6 +8,7 @@ import AnimalsPage from '../pages/AnimalsPage'
 import DashboardPage from '../pages/DashboardPage'
 import LoginPage from '../pages/LoginPage'
 import NewAnimalPage from '../pages/NewAnimalPage'
+import EditAnimalPage from '../pages/EditAnimalPage'
 
 export const router = createBrowserRouter([
   {
@@ -44,6 +45,10 @@ export const router = createBrowserRouter([
           {
             path: '/animals/:animalId',
             element: <AnimalDetailPage />,
+          },
+          {
+            path: '/animals/:animalId/edit',
+            element: <EditAnimalPage />,
           },
         ],
       },
