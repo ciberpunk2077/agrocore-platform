@@ -1,5 +1,10 @@
 import { apiRequest } from '../lib/api'
-import type { WeightHistory, WeighingMethod } from './types'
+import type {
+  Weight,
+  WeightCreatePayload,
+  WeightHistory,
+  WeighingMethod,
+} from './types'
 
 export function getAnimalWeightHistory(
   animalId: string,
@@ -22,5 +27,18 @@ export function getWeighingMethods(
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
+  })
+}
+
+export function createWeight(
+  data: WeightCreatePayload,
+  accessToken: string,
+): Promise<Weight> {
+  return apiRequest<Weight>('/weights/', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(data),
   })
 }

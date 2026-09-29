@@ -6,6 +6,8 @@ import type { Animal } from '../animals/types'
 import { getSession } from '../auth/session'
 import './AnimalDetailPage.css'
 import WeightHistory from '../weights/components/WeightHistory'
+import WeightForm from '../weights/components/WeightForm'
+import type { WeighingMethod } from '../weights/types'
 
 function getAnimalIdentification(animal: Animal): string {
   return (
@@ -22,6 +24,8 @@ function AnimalDetailPage() {
   const [animal, setAnimal] = useState<Animal | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [weighingMethods, setWeighingMethods] = useState<WeighingMethod[]>([])
+  const [weightHistoryVersion, setWeightHistoryVersion] = useState(0)
 
   useEffect(() => {
     let isActive = true
@@ -170,7 +174,17 @@ function AnimalDetailPage() {
           </div>
         </dl>
       </div>
-      <WeightHistory animalId={animal.id} />
+      <WeightForm
+        key={animal.id}
+        animalId={animal.id}
+        onMethodsLoaded={setWeighingMethods}
+        onSaved={() => setWeightHistoryVersion((version) => version + 1)}
+      />
+      <WeightHistory
+        key={`${animal.id}-${weightHistoryVersion}`}
+        animalId={animal.id}
+        methods={weighingMethods}
+      />
     </section>
   )
 
