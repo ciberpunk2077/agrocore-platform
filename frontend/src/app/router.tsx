@@ -6,6 +6,7 @@ import AppLayout from '../layouts/AppLayout'
 import AnimalsPage from '../pages/AnimalsPage'
 import DashboardPage from '../pages/DashboardPage'
 import LoginPage from '../pages/LoginPage'
+import AnimalDetailPage from '../pages/AnimalDetailPage'
 
 export const router = createBrowserRouter([
   {
@@ -34,6 +35,10 @@ export const router = createBrowserRouter([
           {
             path: '/animals',
             element: <AnimalsPage />,
+          },
+          {
+            path: '/animals/:animalId',
+            element: <AnimalDetailPage />,
           },
         ],
       },
