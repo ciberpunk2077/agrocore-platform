@@ -32,3 +32,72 @@ export interface Animal {
   notes: string | null
   is_active: boolean
 }
+
+
+export interface AnimalWritePayload {
+  farm_id: string
+  lot_id: string
+  species_id: string
+  breed_id: string
+  gender_id: string
+  status_id: string
+  internal_id: string
+
+  official_tag?: string
+  electronic_tag?: string
+  name?: string
+  birth_date?: string | null
+  birth_weight?: number | string | null
+  mother_id?: string | null
+  father_id?: string | null
+  notes?: string | null
+}
+
+export interface Species {
+  id: string
+  code: string
+  name: string
+  scientific_name?: string | null
+}
+
+export interface Breed {
+  id: string
+  code: string
+  name: string
+  species_id: string
+}
+
+export interface Gender {
+  id: string
+  code: string
+  name: string
+}
+
+export interface AnimalStatus {
+  id: string
+  code: string
+  name: string
+}
+
+export interface Farm {
+  id: string
+  name: string
+  code: string
+  farm_type_id: string
+  farm_type: string
+  description: string
+  address: string
+  city: string
+  state: string
+  country: string
+}
+
+export interface Lot {
+  id: string
+  organization_id: string
+  farm_id: string
+  code: string
+  name: string
+  description: string
+  capacity: number
+}

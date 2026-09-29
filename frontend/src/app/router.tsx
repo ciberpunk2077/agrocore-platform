@@ -3,10 +3,11 @@ import { Navigate, createBrowserRouter } from 'react-router-dom'
 import ProtectedRoute from '../auth/ProtectedRoute'
 import PublicOnlyRoute from '../auth/PublicOnlyRoute'
 import AppLayout from '../layouts/AppLayout'
+import AnimalDetailPage from '../pages/AnimalDetailPage'
 import AnimalsPage from '../pages/AnimalsPage'
 import DashboardPage from '../pages/DashboardPage'
 import LoginPage from '../pages/LoginPage'
-import AnimalDetailPage from '../pages/AnimalDetailPage'
+import NewAnimalPage from '../pages/NewAnimalPage'
 
 export const router = createBrowserRouter([
   {
@@ -35,6 +36,10 @@ export const router = createBrowserRouter([
           {
             path: '/animals',
             element: <AnimalsPage />,
+          },
+          {
+            path: '/animals/new',
+            element: <NewAnimalPage />,
           },
           {
             path: '/animals/:animalId',
