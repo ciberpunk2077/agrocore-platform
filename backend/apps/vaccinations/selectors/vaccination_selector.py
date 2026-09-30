@@ -17,6 +17,19 @@ class VaccinationSelector:
         )
 
     @staticmethod
+    def history(context, animal_id):
+
+        return (
+            Vaccination.objects
+            .filter(
+                organization=context.organization,
+                animal_id=animal_id,
+                is_active=True,
+            )
+            .order_by("-application_date")
+        )
+
+    @staticmethod
     def get_by_id(context, vaccination_id):
 
         return (
