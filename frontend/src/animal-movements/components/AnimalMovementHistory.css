@@ -1,0 +1,53 @@
+.animal-movements {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 1000px;
+}
+
+.animal-movements h2,
+.animal-movements h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.25rem;
+}
+
+.movement-history {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.movement-history__table-wrapper {
+    overflow-x: auto;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.movement-history table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.movement-history th,
+.movement-history td {
+    padding: 14px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    font-size: 0.9375rem;
+    color: #0f172a;
+}
+
+.movement-history th {
+    color: #64748b;
+    font-size: 0.8125rem;
+}
+
+.movement-history tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.animal-movements [role="alert"] {
+    color: #b91c1c;
+}

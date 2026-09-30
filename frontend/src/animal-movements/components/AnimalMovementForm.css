@@ -1,0 +1,91 @@
+.movement-form {
+    max-width: 1000px;
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.animal-movements .movement-form h3 {
+    margin: 0 0 16px;
+    color: #0f172a;
+    font-size: 1.25rem;
+}
+
+.movement-form fieldset {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.movement-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.movement-form label {
+    color: #64748b;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.movement-form input,
+.movement-form select,
+.movement-form textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    color: #0f172a;
+    background: #ffffff;
+    font: inherit;
+}
+
+.movement-form textarea {
+    resize: vertical;
+}
+
+.movement-form__wide {
+    grid-column: 1 / -1;
+}
+
+.movement-form button {
+    justify-self: start;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 6px;
+    background: #047857;
+    color: #ffffff;
+    font: inherit;
+    cursor: pointer;
+}
+
+.movement-form button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.movement-form p {
+    color: #64748b;
+}
+
+.movement-form p[role="alert"] {
+    color: #b91c1c;
+}
+
+.movement-form .movement-form__success {
+    color: #047857;
+}
+
+@media (max-width: 700px) {
+    .movement-form fieldset {
+        grid-template-columns: 1fr;
+    }
+}
