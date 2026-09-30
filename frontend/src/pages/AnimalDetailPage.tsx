@@ -9,6 +9,7 @@ import WeightHistory from '../weights/components/WeightHistory'
 import WeightForm from '../weights/components/WeightForm'
 import type { WeighingMethod } from '../weights/types'
 import AnimalMovements from '../animal-movements/components/AnimalMovements'
+import Vaccinations from '../vaccinations/components/Vaccinations'
 
 function getAnimalIdentification(animal: Animal): string {
   return (
@@ -199,6 +200,7 @@ function AnimalDetail({ animalId }: { animalId: string | undefined }) {
           current?.id === updated.id ? updated : current,
         )}
       />
+      <Vaccinations key={animal.id} animalId={animal.id} />
     </section>
   )
 

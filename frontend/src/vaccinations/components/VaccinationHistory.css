@@ -1,0 +1,77 @@
+.vaccinations,
+.vaccination-history {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 1000px;
+}
+
+.vaccinations {
+    gap: 20px;
+}
+
+.vaccinations h2,
+.vaccinations h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.25rem;
+}
+
+.vaccinations [role="alert"] {
+    color: #b91c1c;
+}
+
+.vaccination-history__table-wrapper {
+    overflow-x: auto;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.vaccination-history table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.vaccination-history th,
+.vaccination-history td {
+    padding: 14px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    vertical-align: top;
+    font-size: 0.9375rem;
+    color: #0f172a;
+}
+
+.vaccination-history th {
+    color: #64748b;
+    font-size: 0.8125rem;
+}
+
+.vaccination-history tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.vaccination-history details {
+    margin-top: 8px;
+}
+
+.vaccination-history summary {
+    color: #047857;
+    cursor: pointer;
+}
+
+.vaccination-history dl {
+    margin: 12px 0 0;
+}
+
+.vaccination-history dt {
+    font-weight: 600;
+    color: #64748b;
+}
+
+.vaccination-history dd {
+    margin: 4px 0 12px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
