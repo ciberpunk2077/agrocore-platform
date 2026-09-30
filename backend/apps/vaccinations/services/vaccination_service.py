@@ -6,8 +6,6 @@ from django.db import transaction
 from apps.common.exceptions.vaccination import VaccinationValidationError
 from apps.animals.models import Animal
 from apps.vaccinations.models import Vaccination
-from apps.common.exceptions.vaccination import VaccinationValidationError
-from apps.common.exceptions.vaccination import VaccinationValidationError
 from django.utils import timezone
 
 from apps.common.services import BaseCRUDService
@@ -28,6 +26,8 @@ class VaccinationService:
                 relations,
             )
 
+            VaccinationService._validate_business_rules(data)
+
             vaccination = Vaccination(
                 organization=context.organization,
                 animal=relations["animal"],
@@ -40,6 +40,7 @@ class VaccinationService:
                 notes=data.notes,
             )
 
+            VaccinationService._normalize_optional_text(vaccination)
             vaccination.full_clean()
             vaccination.save()
 
@@ -54,6 +55,12 @@ class VaccinationService:
             raise VaccinationValidationError(
                 "Los datos de la vacunación son inválidos."
             )
+
+    @staticmethod
+    def _normalize_optional_text(vaccination):
+        for field in ("batch", "veterinarian", "notes"):
+            if getattr(vaccination, field) is None:
+                setattr(vaccination, field, "")
 
     @staticmethod
     def _load_relations(context, data):
@@ -139,6 +146,7 @@ class VaccinationService:
             vaccination.veterinarian = data.veterinarian
             vaccination.notes = data.notes
 
+            VaccinationService._normalize_optional_text(vaccination)
             vaccination.full_clean()
             vaccination.save()
 
