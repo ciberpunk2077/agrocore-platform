@@ -8,6 +8,7 @@ import './AnimalDetailPage.css'
 import WeightHistory from '../weights/components/WeightHistory'
 import WeightForm from '../weights/components/WeightForm'
 import type { WeighingMethod } from '../weights/types'
+import AnimalMovements from '../animal-movements/components/AnimalMovements'
 
 function getAnimalIdentification(animal: Animal): string {
   return (
@@ -21,6 +22,11 @@ function getAnimalIdentification(animal: Animal): string {
 function AnimalDetailPage() {
   const { animalId } = useParams<{ animalId: string }>()
 
+  // Reset the whole detail (including write forms) before rendering another animal.
+  return <AnimalDetail key={animalId} animalId={animalId} />
+}
+
+function AnimalDetail({ animalId }: { animalId: string | undefined }) {
   const [animal, setAnimal] = useState<Animal | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -184,6 +190,14 @@ function AnimalDetailPage() {
         key={`${animal.id}-${weightHistoryVersion}`}
         animalId={animal.id}
         methods={weighingMethods}
+      />
+      <AnimalMovements
+        key={animal.id}
+        animalId={animal.id}
+        animal={animal}
+        onAnimalUpdated={(updated) => setAnimal((current) =>
+          current?.id === updated.id ? updated : current,
+        )}
       />
     </section>
   )
