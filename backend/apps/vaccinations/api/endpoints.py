@@ -26,6 +26,16 @@ def list_vaccinations(request):
 
 
 @router.get(
+    "/animal/{animal_id}/history",
+    response=list[VaccinationResponseSchema],
+    summary="Vaccination History",
+)
+def vaccination_history(request, animal_id: UUID):
+
+    return VaccinationSelector.history(request.context, animal_id)
+
+
+@router.get(
     "/{vaccination_id}",
     response=VaccinationResponseSchema,
     summary="Get Vaccination",
@@ -61,7 +71,6 @@ def create_vaccination(
         payload,
     )
 
-# ---------------------------------------------revisar-------------------
 
 @router.put(
     "/{vaccination_id}",
