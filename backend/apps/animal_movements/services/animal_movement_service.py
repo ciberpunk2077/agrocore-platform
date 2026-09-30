@@ -9,6 +9,7 @@ from apps.lots.models import Lot
 from apps.common.exceptions import BusinessException
 
 from apps.animal_movements.models import AnimalMovement
+from apps.animal_movements.selectors import AnimalMovementSelector
 from apps.common.services import BaseCRUDService
 
 
@@ -34,7 +35,11 @@ class AnimalMovementService:
                 relations,
             )
 
-        
+            AnimalMovementService._validate_created_date(
+                context,
+                relations["animal"],
+                data.date,
+            )
 
             # movement = AnimalMovement.objects.create(
             movement = AnimalMovement(
@@ -357,6 +362,17 @@ class AnimalMovementService:
         ):
             raise BusinessException(
                 "No se puede modificar un movimiento histórico cuando existen movimientos posteriores."
+            )
+
+
+    @staticmethod
+    def _validate_created_date(context, animal, new_date):
+
+        latest_movement = AnimalMovementSelector.last(context, animal.id)
+
+        if latest_movement and new_date <= latest_movement.date:
+            raise BusinessException(
+                "La fecha del movimiento debe ser posterior al último movimiento registrado."
             )
 
 
