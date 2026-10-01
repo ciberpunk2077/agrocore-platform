@@ -7,10 +7,13 @@ from .animal import (
     RelatedObjectNotFound,
 )
 
+from .birth import BirthValidationError
+
 __all__ = [
     "BusinessException",
     "FarmDoesNotBelongToOrganization",
     "LotDoesNotBelongToFarm",
     "BreedDoesNotBelongToSpecies",
     "RelatedObjectNotFound",
+    "BirthValidationError"
 ]

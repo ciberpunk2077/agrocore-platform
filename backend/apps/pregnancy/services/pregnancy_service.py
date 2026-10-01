@@ -2,9 +2,11 @@ from django.core.exceptions import (
     ObjectDoesNotExist,
     ValidationError,
 )
+from django.utils import timezone
 
 from apps.animals.models import Animal
 from apps.breeding.models import BreedingEvent
+from apps.common.exceptions.pregnancy import PregnancyValidationError
 from apps.pregnancy.models import Pregnancy, PregnancyStatus
 
 
@@ -16,6 +18,7 @@ class PregnancyService:
         try:
 
             relations = PregnancyService._load_relations(
+                context,
                 data,
             )
 
@@ -39,13 +42,18 @@ class PregnancyService:
                 notes=data.notes,
             )
 
-            pregnancy.full_clean()
+            try:
+                pregnancy.full_clean()
+            except ValidationError:
+                raise PregnancyValidationError(
+                    "Los datos de la gestación son inválidos."
+                )
             pregnancy.save()
 
             return pregnancy
 
         except ObjectDoesNotExist:
-            raise ValidationError(
+            raise PregnancyValidationError(
                 "Uno de los registros relacionados no existe."
             )
 
@@ -55,25 +63,31 @@ class PregnancyService:
         try:
             pregnancy = Pregnancy.objects.get(
                 id=pregnancy_id,
+                organization=context.organization,
                 is_active=True,
             )
         except Pregnancy.DoesNotExist:
-            raise ValidationError(
+            raise PregnancyValidationError(
                 "La gestación no existe."
             )
 
         if pregnancy.organization_id != context.organization.id:
-            raise ValidationError(
+            raise PregnancyValidationError(
                 "La gestación no pertenece a la organización."
             )
 
         if pregnancy.status != PregnancyStatus.ACTIVE:
-            raise ValidationError(
+            raise PregnancyValidationError(
                 "Solo se puede abortar una gestación activa."
             )
 
         pregnancy.status = PregnancyStatus.ABORTED
-        pregnancy.full_clean()
+        try:
+            pregnancy.full_clean()
+        except ValidationError:
+            raise PregnancyValidationError(
+                "Los datos de la gestación son inválidos."
+            )
         pregnancy.save(
             update_fields=[
                 "status",
@@ -85,14 +99,18 @@ class PregnancyService:
 
 
     @staticmethod
-    def _load_relations(data):
+    def _load_relations(context, data):
 
         return {
             "animal": Animal.objects.get(
                 id=data.animal_id,
+                organization=context.organization,
+                is_active=True,
             ),
             "breeding": BreedingEvent.objects.get(
                 id=data.breeding_id,
+                organization=context.organization,
+                is_active=True,
             ),
         }
 
@@ -108,25 +126,25 @@ class PregnancyService:
         breeding = relations["breeding"]
 
         if animal.organization_id != context.organization.id:
-            raise ValidationError(
+            raise PregnancyValidationError(
                 "El animal no pertenece a la organización."
             )
 
         if breeding.organization_id != context.organization.id:
-            raise ValidationError(
+            raise PregnancyValidationError(
                 "El evento reproductivo no pertenece a la organización."
             )
 
         if breeding.animal_id != animal.id:
-            raise ValidationError(
+            raise PregnancyValidationError(
                 "El evento reproductivo no pertenece al animal."
             )
 
-        if Pregnancy.objects.filter(
+        # OneToOne also reserves the breeding event after soft deletion.
+        if Pregnancy._base_manager.filter(
             breeding=breeding,
-            is_active=True,
         ).exists():
-            raise ValidationError(
+            raise PregnancyValidationError(
                 "Este evento reproductivo ya tiene una gestación registrada."
             )
 
@@ -139,18 +157,23 @@ class PregnancyService:
         breeding = relations["breeding"]
 
         if not data.confirmed:
-            raise ValidationError(
+            raise PregnancyValidationError(
                 "Solo se puede registrar una gestación confirmada."
             )
 
         if data.diagnosis_date < breeding.date:
-            raise ValidationError(
+            raise PregnancyValidationError(
                 "La fecha de diagnóstico no puede ser anterior "
                 "al evento reproductivo."
             )
 
+        if data.diagnosis_date > timezone.localdate():
+            raise PregnancyValidationError(
+                "La fecha de diagnóstico no puede ser futura."
+            )
+
         if data.expected_birth <= data.diagnosis_date:
-            raise ValidationError(
+            raise PregnancyValidationError(
                 "La fecha estimada de parto debe ser posterior "
                 "a la fecha de diagnóstico."
             )

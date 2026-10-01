@@ -1,0 +1,79 @@
+.breeding-form {
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.breeding .breeding-form h3 {
+    margin-bottom: 16px;
+}
+
+.breeding-form fieldset {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.breeding-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.breeding-form label {
+    color: #64748b;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.breeding-form input,
+.breeding-form select,
+.breeding-form textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    color: #0f172a;
+    background: #ffffff;
+    font: inherit;
+}
+
+.breeding-form textarea {
+    resize: vertical;
+}
+
+.breeding-form__wide {
+    grid-column: 1 / -1;
+}
+
+.breeding-form button {
+    justify-self: start;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 6px;
+    background: #047857;
+    color: #ffffff;
+    font: inherit;
+    cursor: pointer;
+}
+
+.breeding-form button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.breeding-form__success {
+    color: #047857;
+}
+
+@media (max-width: 700px) {
+    .breeding-form fieldset {
+        grid-template-columns: 1fr;
+    }
+}

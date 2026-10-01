@@ -10,6 +10,9 @@ import WeightForm from '../weights/components/WeightForm'
 import type { WeighingMethod } from '../weights/types'
 import AnimalMovements from '../animal-movements/components/AnimalMovements'
 import Vaccinations from '../vaccinations/components/Vaccinations'
+import Breeding from '../breeding/components/Breeding'
+import Pregnancy from '../pregnancy/components/Pregnancy'
+import Births from '../births/components/Births'
 
 function getAnimalIdentification(animal: Animal): string {
   return (
@@ -201,6 +204,9 @@ function AnimalDetail({ animalId }: { animalId: string | undefined }) {
         )}
       />
       <Vaccinations key={animal.id} animalId={animal.id} />
+      <Breeding key={animal.id} animal={animal} />
+      <Pregnancy key={animal.id} animal={animal} />
+      <Births key={animal.id} animal={animal} />
     </section>
   )
 

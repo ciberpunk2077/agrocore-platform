@@ -23,6 +23,19 @@ class BreedingSelector:
         )
 
     @staticmethod
+    def history(context, animal_id: UUID):
+
+        return (
+            BreedingEvent.objects
+            .filter(
+                organization=context.organization,
+                animal_id=animal_id,
+                is_active=True,
+            )
+            .order_by("-date")
+        )
+
+    @staticmethod
     def get_by_id(context, event_id: UUID):
 
         try:

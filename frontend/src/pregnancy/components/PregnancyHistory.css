@@ -1,0 +1,98 @@
+.pregnancy,
+.pregnancy-history {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 1000px;
+}
+
+.pregnancy {
+    gap: 20px;
+}
+
+.pregnancy h2,
+.pregnancy h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.25rem;
+}
+
+.pregnancy [role="alert"] {
+    color: #b91c1c;
+}
+
+.pregnancy-history__table-wrapper {
+    overflow-x: auto;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.pregnancy-history table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.pregnancy-history th,
+.pregnancy-history td {
+    padding: 14px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    vertical-align: top;
+    font-size: 0.9375rem;
+    color: #0f172a;
+}
+
+.pregnancy-history th {
+    color: #64748b;
+    font-size: 0.8125rem;
+}
+
+.pregnancy-history tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.pregnancy-history details {
+    margin-top: 8px;
+}
+
+.pregnancy-history summary {
+    color: #047857;
+    cursor: pointer;
+}
+
+.pregnancy-history dl {
+    margin: 12px 0 0;
+}
+
+.pregnancy-history dt {
+    font-weight: 600;
+    color: #64748b;
+}
+
+.pregnancy-history dd {
+    margin: 4px 0 12px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.pregnancy button {
+    align-self: flex-start;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 6px;
+    background: #047857;
+    color: #ffffff;
+    font: inherit;
+    cursor: pointer;
+}
+
+.pregnancy button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.pregnancy-history details p {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
