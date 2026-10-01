@@ -27,6 +27,19 @@ def list_births(request):
 
 
 @router.get(
+    "/animal/{animal_id}/history",
+    response=list[BirthResponseSchema],
+    summary="Birth History",
+)
+def birth_history(request, animal_id: UUID):
+
+    return BirthSelector.history(
+        request.context,
+        animal_id,
+    )
+
+
+@router.get(
     "/{birth_id}",
     response=BirthResponseSchema,
     summary="Get Birth",

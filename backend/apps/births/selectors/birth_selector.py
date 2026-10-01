@@ -23,6 +23,25 @@ class BirthSelector:
             )
         )
 
+
+    @staticmethod
+    def history(context, animal_id):
+
+        return (
+            Birth.objects
+            .select_related(
+                "mother",
+                "calf",
+                "pregnancy",
+                "calf_gender",
+            )
+            .filter(
+                organization=context.organization,
+                mother_id=animal_id,
+                is_active=True,
+            )
+            .order_by("-birth_date")
+        )
     @staticmethod
     def get_by_id(context, birth_id):
 

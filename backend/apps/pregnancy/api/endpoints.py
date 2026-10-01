@@ -28,6 +28,15 @@ def list_pregnancies(request):
 
 
 @router.get(
+    "/animal/{animal_id}/history",
+    response=list[PregnancyResponseSchema],
+    summary="Pregnancy History",
+)
+def pregnancy_history(request, animal_id: UUID):
+    return PregnancySelector.history(request.context, animal_id)
+
+
+@router.get(
     "/{pregnancy_id}",
     response=PregnancyResponseSchema,
     summary="Get Pregnancy",

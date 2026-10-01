@@ -1,4 +1,5 @@
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.utils import timezone
 
 from apps.animals.models import Animal
 from apps.catalogs.models import BreedingType
@@ -21,6 +22,8 @@ class BreedingService:
                 context,
                 relations,
             )
+
+            BreedingService._validate_business_rules(data)
 
             event = BreedingEvent(
                 organization=context.organization,
@@ -68,6 +71,8 @@ class BreedingService:
                 relations,
             )
 
+            BreedingService._validate_business_rules(data)
+
             event.animal = relations["animal"]
             event.male = relations["male"]
             event.breeding_type = relations["breeding_type"]
@@ -107,6 +112,18 @@ class BreedingService:
         return BaseCRUDService.soft_delete(
             event,
         )
+
+    @staticmethod
+    def _validate_business_rules(data):
+        if data.date > timezone.localdate():
+            raise BreedingValidationError(
+                "La fecha del evento reproductivo no puede ser futura."
+            )
+
+        if data.expected_birth is not None and data.expected_birth <= data.date:
+            raise BreedingValidationError(
+                "La fecha estimada de parto debe ser posterior a la fecha del evento reproductivo."
+            )
 
     @staticmethod
     def _load_relations(context, data):

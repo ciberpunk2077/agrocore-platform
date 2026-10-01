@@ -1,11 +1,10 @@
-from django.core.exceptions import (
-    ObjectDoesNotExist,
-    ValidationError,
-)
+from django.core.exceptions import  ObjectDoesNotExist, ValidationError
 
+from django.utils import timezone
 from django.db import transaction
 
 from apps.common.exceptions import (
+    BirthValidationError,
     BusinessException,
     RelatedObjectNotFound,
 )
@@ -30,7 +29,7 @@ class BirthService:
 
             if data.calf_id is None and data.calf_gender_id is None:
                 raise BusinessException(
-                    "Debe indicar el sexo de la cría para crearla automáticamente."
+                    "Debe indicar el sexo de la crÃ­a para crearla automÃ¡ticamente."
                 )
 
             pregnancy = Pregnancy.objects.get(
@@ -62,8 +61,8 @@ class BirthService:
                 )
 
                 if calf.id == mother.id:
-                    raise ValidationError(
-                        "La madre no puede ser registrada como su propia cría."
+                    raise BirthValidationError(
+                        "La madre no puede ser registrada como su propia crÃ­a."
                     )
 
 
@@ -71,8 +70,8 @@ class BirthService:
                     calf.mother_id is not None
                     and calf.mother_id != mother.id
                 ):
-                    raise ValidationError(
-                        "La cría seleccionada pertenece a otra madre."
+                    raise BirthValidationError(
+                        "La crÃ­a seleccionada pertenece a otra madre."
                     )
 
 
@@ -111,7 +110,7 @@ class BirthService:
                     )
                 except ValidationError as exc:
                     raise BusinessException(
-                        "No se pudo crear la cría: los datos del animal son inválidos."
+                        "No se pudo crear la crÃ­a: los datos del animal son invÃ¡lidos."
                     ) from exc
 
                 birth.calf = calf
@@ -135,6 +134,7 @@ class BirthService:
             )
 
 
+
     @staticmethod
     def _validate_business_rules(
         data,
@@ -143,30 +143,45 @@ class BirthService:
     ):
 
         if pregnancy.status != PregnancyStatus.ACTIVE:
-            raise ValidationError(
-                "Solo se puede registrar un parto para una gestación activa."
+            raise BirthValidationError(
+                "Solo se puede registrar un parto para una gestaciÃ³n activa."
             )
 
         if pregnancy.animal_id != mother.id:
-            raise ValidationError("La gestación no pertenece a la madre indicada.")
+            raise BirthValidationError(
+                "La gestaciÃ³n no pertenece a la madre indicada."
+            )
 
         if Birth.objects.filter(
             pregnancy=pregnancy,
             is_active=True,
         ).exists():
-            raise ValidationError(
-                "Esta gestación ya tiene un parto registrado."
+            raise BirthValidationError(
+                "Esta gestaciÃ³n ya tiene un parto registrado."
             )
 
-       
+        if data.birth_date < pregnancy.breeding.date:
+            raise BirthValidationError(
+                "La fecha del parto no puede ser anterior a la reproducciÃ³n."
+            )
+
+        if data.birth_date < pregnancy.diagnosis_date:
+            raise BirthValidationError(
+                "La fecha del parto no puede ser anterior al diagnÃ³stico de gestaciÃ³n."
+            )
+
+        if data.birth_date > timezone.localdate():
+            raise BirthValidationError(
+                "La fecha del parto no puede estar en el futuro."
+            )
+
         if (
             data.birth_weight is not None
             and data.birth_weight <= 0
         ):
-            raise ValidationError(
+            raise BirthValidationError(
                 "El peso al nacimiento debe ser mayor que cero."
             )
-
 
     @staticmethod
     def _finish_pregnancy(pregnancy):
@@ -178,4 +193,3 @@ class BirthService:
                 "status",
             ]
         )
-

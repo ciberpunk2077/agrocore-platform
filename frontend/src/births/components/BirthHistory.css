@@ -1,0 +1,63 @@
+.birth-history {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 1000px;
+}
+
+.birth-history h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.25rem;
+}
+
+.birth-history__list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.birth-history__item {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.birth-history__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.birth-history__field strong {
+    color: #64748b;
+    font-size: 0.8125rem;
+}
+
+.birth-history__field span {
+    color: #0f172a;
+    font-size: 0.9375rem;
+}
+
+.birth-history__notes {
+    grid-column: 1 / -1;
+}
+
+.birth-history__notes span {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+    .birth-history__item {
+        grid-template-columns: 1fr;
+    }
+
+    .birth-history__notes {
+        grid-column: auto;
+    }
+}

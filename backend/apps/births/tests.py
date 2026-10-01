@@ -1,19 +1,25 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
+
 
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
-
+from django.utils import timezone
 from apps.animals.models import Animal
 from apps.births.api.schemas import BirthCreateSchema
 from apps.births.models import Birth
 from apps.births.services import BirthService
+from apps.births.selectors import BirthSelector
 from apps.breeding.models import BreedingEvent
 from apps.catalogs.models import AnimalStatus, Breed, BreedingType, Gender, Species
 from apps.common.context.context import RequestContext
-from apps.common.exceptions import BusinessException
+from apps.common.exceptions import (
+    BirthValidationError,
+    BusinessException,
+)
+
 from apps.organizations.models import Organization
 from apps.pregnancy.models import Pregnancy, PregnancyStatus
 
@@ -127,7 +133,7 @@ class BirthAutomaticCalfRegressionTests(TestCase):
         self.assertIs(type(raised.exception), BusinessException)
         self.assertEqual(
             str(raised.exception),
-            "Debe indicar el sexo de la cría para crearla automáticamente.",
+            "Debe indicar el sexo de la crÃ­a para crearla automÃ¡ticamente.",
         )
         self.assertFalse(any(
             query["sql"].lstrip().upper().startswith("INSERT") for query in queries
@@ -151,7 +157,7 @@ class BirthAutomaticCalfRegressionTests(TestCase):
         self.assertIs(type(raised.exception), BusinessException)
         self.assertEqual(
             str(raised.exception),
-            "No se pudo crear la cría: los datos del animal son inválidos.",
+            "No se pudo crear la crÃ­a: los datos del animal son invÃ¡lidos.",
         )
         self.assertIsInstance(raised.exception.__cause__, ValidationError)
         self.assertEqual(set(raised.exception.__cause__.error_dict), {"breed"})
@@ -196,7 +202,7 @@ class BirthAutomaticCalfRegressionTests(TestCase):
         self.pregnancy.status = PregnancyStatus.FINISHED
         self.pregnancy.save(update_fields=["status"])
 
-        with self.assertRaises(ValidationError):
+        with self.assertRaises(BirthValidationError):
             BirthService.create(
                 RequestContext(organization=self.organization),
                 self.make_payload(self.female.pk),
@@ -214,7 +220,7 @@ class BirthAutomaticCalfRegressionTests(TestCase):
         self.pregnancy.status = PregnancyStatus.ABORTED
         self.pregnancy.save(update_fields=["status"])
 
-        with self.assertRaises(ValidationError):
+        with self.assertRaises(BirthValidationError):
             BirthService.create(
                 RequestContext(organization=self.organization),
                 self.make_payload(self.female.pk),
@@ -226,4 +232,355 @@ class BirthAutomaticCalfRegressionTests(TestCase):
         self.assertEqual(
             self.pregnancy.status,
             PregnancyStatus.ABORTED,
+        )
+
+
+    def test_rejects_birth_before_breeding_date(self):
+        payload = self.make_payload(self.female.pk)
+        payload.birth_date = date(2024, 12, 31)
+
+        with self.assertRaisesMessage(
+            BirthValidationError,
+            "La fecha del parto no puede ser anterior a la reproducciÃ³n.",
+        ):
+            BirthService.create(
+                RequestContext(organization=self.organization),
+                payload,
+            )
+
+        self.assertEqual(Birth.objects.count(), 0)
+
+        self.pregnancy.refresh_from_db()
+        self.assertEqual(
+            self.pregnancy.status,
+            PregnancyStatus.ACTIVE,
+        )
+
+    def test_rejects_birth_before_diagnosis_date(self):
+        payload = self.make_payload(self.female.pk)
+        payload.birth_date = date(2025, 1, 15)
+
+        with self.assertRaisesMessage(
+            BirthValidationError,
+            "La fecha del parto no puede ser anterior al diagnÃ³stico de gestaciÃ³n.",
+        ):
+            BirthService.create(
+                RequestContext(organization=self.organization),
+                payload,
+            )
+
+        self.assertEqual(Birth.objects.count(), 0)
+
+        self.pregnancy.refresh_from_db()
+        self.assertEqual(
+            self.pregnancy.status,
+            PregnancyStatus.ACTIVE,
+        )
+
+    def test_rejects_future_birth_date(self):
+        payload = self.make_payload(self.female.pk)
+        payload.birth_date = timezone.localdate() + timedelta(days=1)
+
+        with self.assertRaisesMessage(
+            BirthValidationError,
+            "La fecha del parto no puede estar en el futuro.",
+        ):
+            BirthService.create(
+                RequestContext(organization=self.organization),
+                payload,
+            )
+
+        self.assertEqual(Birth.objects.count(), 0)
+
+        self.pregnancy.refresh_from_db()
+        self.assertEqual(
+            self.pregnancy.status,
+            PregnancyStatus.ACTIVE,
+        )
+
+    def test_accepts_birth_on_diagnosis_date(self):
+        payload = self.make_payload(self.female.pk)
+        payload.birth_date = self.pregnancy.diagnosis_date
+
+        birth = BirthService.create(
+            RequestContext(organization=self.organization),
+            payload,
+        )
+
+        self.assertEqual(birth.birth_date, self.pregnancy.diagnosis_date)
+        self.assertEqual(Birth.objects.count(), 1)
+
+        self.pregnancy.refresh_from_db()
+        self.assertEqual(
+            self.pregnancy.status,
+            PregnancyStatus.FINISHED,
+        )
+
+
+
+# -------------------------------------------------------------------
+
+class BirthHistorySelectorTests(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.organization = Organization.objects.create(
+            code="BH",
+            name="Birth History Organization",
+        )
+
+        cls.other_organization = Organization.objects.create(
+            code="BH2",
+            name="Other Birth History Organization",
+        )
+
+        species = Species.objects.create(
+            code="BH",
+            name="Birth History Species",
+        )
+
+        breed = Breed.objects.create(
+            species=species,
+            code="BH",
+            name="Birth History Breed",
+        )
+
+        cls.female = Gender.objects.create(
+            code="BHF",
+            name="Birth History Female",
+        )
+
+        cls.male = Gender.objects.create(
+            code="BHM",
+            name="Birth History Male",
+        )
+
+        status = AnimalStatus.objects.create(
+            code="BH",
+            name="Birth History Active",
+        )
+
+        cls.mother = Animal.objects.create(
+            organization=cls.organization,
+            species=species,
+            breed=breed,
+            gender=cls.female,
+            status=status,
+            internal_id="BH_MOTHER",
+            is_active=True,
+        )
+
+        cls.other_mother = Animal.objects.create(
+            organization=cls.organization,
+            species=species,
+            breed=breed,
+            gender=cls.female,
+            status=status,
+            internal_id="BH_OTHER_MOTHER",
+            is_active=True,
+        )
+
+        cls.other_tenant_mother = Animal.objects.create(
+            organization=cls.other_organization,
+            species=species,
+            breed=breed,
+            gender=cls.female,
+            status=status,
+            internal_id="BH_OTHER_TENANT",
+            is_active=True,
+        )
+
+        cls.breeding_type = BreedingType.objects.create(
+            code="BH",
+            name="Birth History Breeding",
+        )
+
+    @classmethod
+    def create_pregnancy(cls, mother, breeding_date, diagnosis_date):
+        breeding = BreedingEvent.objects.create(
+            organization=mother.organization,
+            animal=mother,
+            male=None,
+            breeding_type=cls.breeding_type,
+            date=breeding_date,
+            expected_birth=diagnosis_date,
+        )
+
+        return Pregnancy.objects.create(
+            organization=mother.organization,
+            breeding=breeding,
+            animal=mother,
+            diagnosis_date=diagnosis_date,
+            expected_birth=diagnosis_date,
+            confirmed=True,
+            status=PregnancyStatus.FINISHED,
+        )
+
+    @classmethod
+    def create_birth(
+        cls,
+        mother,
+        birth_date,
+        is_active=True,
+    ):
+        pregnancy = cls.create_pregnancy(
+            mother=mother,
+            breeding_date=date(2025, 1, 1),
+            diagnosis_date=date(2025, 2, 1),
+        )
+
+        return Birth.objects.create(
+            organization=mother.organization,
+            pregnancy=pregnancy,
+            mother=mother,
+            calf=None,
+            calf_gender=None,
+            birth_date=birth_date,
+            birth_weight=Decimal("30.00"),
+            alive=True,
+            dystocia=False,
+            notes=None,
+            is_active=is_active,
+        )
+
+    def test_history_returns_only_requested_mother(self):
+        requested_birth = self.create_birth(
+            self.mother,
+            date(2025, 10, 1),
+        )
+
+        self.create_birth(
+            self.other_mother,
+            date(2025, 10, 2),
+        )
+
+        history = list(
+            BirthSelector.history(
+                RequestContext(organization=self.organization),
+                self.mother.pk,
+            )
+        )
+
+        self.assertEqual(
+            [birth.pk for birth in history],
+            [requested_birth.pk],
+        )
+
+    def test_history_filters_by_organization(self):
+        organization_birth = self.create_birth(
+            self.mother,
+            date(2025, 10, 1),
+        )
+
+        other_tenant_birth = self.create_birth(
+            self.other_tenant_mother,
+            date(2025, 10, 2),
+        )
+
+        history = list(
+            BirthSelector.history(
+                RequestContext(organization=self.organization),
+                self.mother.pk,
+            )
+        )
+
+        self.assertEqual(
+            [birth.pk for birth in history],
+            [organization_birth.pk],
+        )
+        self.assertNotIn(
+            other_tenant_birth.pk,
+            [birth.pk for birth in history],
+        )
+
+    def test_history_excludes_inactive_births(self):
+        active_birth = self.create_birth(
+            self.mother,
+            date(2025, 10, 1),
+            is_active=True,
+        )
+
+        inactive_birth = self.create_birth(
+            self.mother,
+            date(2025, 10, 2),
+            is_active=False,
+        )
+
+        history = list(
+            BirthSelector.history(
+                RequestContext(organization=self.organization),
+                self.mother.pk,
+            )
+        )
+
+        self.assertEqual(
+            [birth.pk for birth in history],
+            [active_birth.pk],
+        )
+        self.assertNotIn(
+            inactive_birth.pk,
+            [birth.pk for birth in history],
+        )
+
+    def test_history_is_ordered_by_most_recent_birth(self):
+        oldest = self.create_birth(
+            self.mother,
+            date(2025, 8, 1),
+        )
+
+        newest = self.create_birth(
+            self.mother,
+            date(2025, 10, 1),
+        )
+
+        middle = self.create_birth(
+            self.mother,
+            date(2025, 9, 1),
+        )
+
+        history = list(
+            BirthSelector.history(
+                RequestContext(organization=self.organization),
+                self.mother.pk,
+            )
+        )
+
+        self.assertEqual(
+            [birth.pk for birth in history],
+            [
+                newest.pk,
+                middle.pk,
+                oldest.pk,
+            ],
+        )
+
+    def test_history_returns_empty_list_when_no_births_exist(self):
+        history = list(
+            BirthSelector.history(
+                RequestContext(organization=self.organization),
+                self.mother.pk,
+            )
+        )
+
+        self.assertEqual(history, [])
+
+    def test_history_does_not_require_animal_lookup(self):
+        with CaptureQueriesContext(connection) as queries:
+            history = list(
+                BirthSelector.history(
+                    RequestContext(organization=self.organization),
+                    self.mother.pk,
+                )
+            )
+
+        self.assertEqual(history, [])
+
+        self.assertFalse(
+            any(
+                "FROM animals" in query["sql"].lower()
+                and "WHERE" in query["sql"].upper()
+                for query in queries
+            )
         )

@@ -27,6 +27,16 @@ def list_breeding(request):
 
 
 @router.get(
+    "/animal/{animal_id}/history",
+    response=list[BreedingResponseSchema],
+    summary="Breeding History",
+)
+def breeding_history(request, animal_id: UUID):
+
+    return BreedingSelector.history(request.context, animal_id)
+
+
+@router.get(
     "/{event_id}",
     response=BreedingResponseSchema,
     summary="Get Breeding Event",

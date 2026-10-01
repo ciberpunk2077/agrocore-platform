@@ -36,10 +36,24 @@
 #             .first()
 #         )
 
+from uuid import UUID
+
 from apps.pregnancy.models import Pregnancy
 
 
 class PregnancySelector:
+
+    @staticmethod
+    def history(context, animal_id: UUID):
+        return (
+            Pregnancy.objects
+            .filter(
+                organization=context.organization,
+                animal_id=animal_id,
+                is_active=True,
+            )
+            .order_by("-diagnosis_date")
+        )
 
     @staticmethod
     def list(context):
