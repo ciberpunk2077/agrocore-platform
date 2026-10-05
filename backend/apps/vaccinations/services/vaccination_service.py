@@ -7,8 +7,11 @@ from apps.common.exceptions.vaccination import VaccinationValidationError
 from apps.animals.models import Animal
 from apps.vaccinations.models import Vaccination
 from django.utils import timezone
+from zoneinfo import ZoneInfo
 
 from apps.common.services import BaseCRUDService
+
+VACCINATION_TIME_ZONE = ZoneInfo("America/Mexico_City")
 
 
 class VaccinationService:
@@ -26,7 +29,7 @@ class VaccinationService:
                 relations,
             )
 
-            VaccinationService._validate_business_rules(data)
+            VaccinationService._validate_business_rules(data, relations["animal"])
 
             vaccination = Vaccination(
                 organization=context.organization,
@@ -41,7 +44,7 @@ class VaccinationService:
             )
 
             VaccinationService._normalize_optional_text(vaccination)
-            vaccination.full_clean()
+            VaccinationService._full_clean(vaccination)
             vaccination.save()
 
             return vaccination
@@ -51,10 +54,25 @@ class VaccinationService:
                 "El animal no existe."
             )
 
-        except ValidationError:
-            raise VaccinationValidationError(
-                "Los datos de la vacunación son inválidos."
-            )
+    @staticmethod
+    def _full_clean(vaccination):
+        try:
+            vaccination.full_clean()
+        except ValidationError as exc:
+            recognized = {
+                "vaccine_name": {"blank", "max_length"},
+                "batch": {"max_length"},
+                "veterinarian": {"max_length"},
+                "dose": {"max_digits", "max_decimal_places", "max_whole_digits"},
+            }
+            if not hasattr(exc, "error_dict") or not exc.error_dict:
+                raise
+            if not all(
+                errors and all(error.code in recognized.get(field, set()) for error in errors)
+                for field, errors in exc.error_dict.items()
+            ):
+                raise
+            raise VaccinationValidationError(" ".join(exc.messages)) from exc
 
     @staticmethod
     def _normalize_optional_text(vaccination):
@@ -83,22 +101,27 @@ class VaccinationService:
         animal = relations["animal"]
 
         if animal.organization_id != context.organization.id:
-            raise ValidationError(
+            raise VaccinationValidationError(
                 "El animal no pertenece a la organización actual."
             )
 
         if not animal.is_active:
-            raise ValidationError(
+            raise VaccinationValidationError(
                 "No es posible registrar una vacunación para un animal inactivo."
             )
 
 
     @staticmethod
-    def _validate_business_rules(data):
+    def _validate_business_rules(data, animal):
 
-        if data.application_date > timezone.localdate():
+        if data.application_date > timezone.localdate(timezone=VACCINATION_TIME_ZONE):
             raise VaccinationValidationError(
                 "La fecha de aplicación no puede ser futura."
+            )
+
+        if animal.birth_date is not None and data.application_date < animal.birth_date:
+            raise VaccinationValidationError(
+                "La fecha de aplicación no puede ser anterior al nacimiento del animal."
             )
 
         if data.dose <= 0:
@@ -133,7 +156,7 @@ class VaccinationService:
                 relations,
             )
 
-            VaccinationService._validate_business_rules(data)
+            VaccinationService._validate_business_rules(data, relations["animal"])
 
             vaccination.animal = relations["animal"]
 
@@ -147,7 +170,7 @@ class VaccinationService:
             vaccination.notes = data.notes
 
             VaccinationService._normalize_optional_text(vaccination)
-            vaccination.full_clean()
+            VaccinationService._full_clean(vaccination)
             vaccination.save()
 
             return vaccination

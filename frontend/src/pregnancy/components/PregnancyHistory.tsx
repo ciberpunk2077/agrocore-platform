@@ -1,3 +1,4 @@
+import WriteOnly from '../../auth/WriteOnly'
 import type { PregnancyRecord } from '../types'
 import './PregnancyHistory.css'
 
@@ -26,8 +27,8 @@ function PregnancyHistory({ history, eventLabels, disabled, onAbort }: Pregnancy
             {item.notes?.trim() && <details><summary>Ver notas</summary><p>{item.notes}</p></details>}
           </td>
           <td>{statusLabels[item.status] ?? 'Estado no disponible'}</td>
-          <td>{item.status === 'ACTIVE' ? <button type="button" disabled={disabled}
-            onClick={() => onAbort(item)}>Registrar aborto</button> : '—'}</td>
+          <td>{item.status === 'ACTIVE' ? <WriteOnly fallback="—"><button type="button" disabled={disabled}
+            onClick={() => onAbort(item)}>Registrar aborto</button></WriteOnly> : '—'}</td>
         </tr>)}</tbody>
       </table>
     </div>}

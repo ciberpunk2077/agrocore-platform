@@ -39,14 +39,8 @@ class BreedingTestBase(TestCase):
             code="TEST_BREED",
             name="Test breeding breed",
         )
-        female_gender = Gender.objects.create(
-            code="F",
-            name="Test female",
-        )
-        male_gender = Gender.objects.create(
-            code="M",
-            name="Test male",
-        )
+        female_gender = Gender.objects.get(code="F")
+        male_gender = Gender.objects.get(code="M")
         status = AnimalStatus.objects.create(
             code="TEST_STATUS",
             name="Test breeding status",

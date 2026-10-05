@@ -59,9 +59,22 @@ class AnimalResponseSchema(Schema):
     is_active: bool
 
 
+class AnimalParentReferenceSchema(Schema):
+    id: UUID
+    internal_id: str | None
+    name: str | None
+    is_active: bool
+    is_deleted: bool
+
+
+class AnimalDetailResponseSchema(AnimalResponseSchema):
+    mother_reference: AnimalParentReferenceSchema | None
+    father_reference: AnimalParentReferenceSchema | None
+
+
 class AnimalUpdateSchema(Schema):
-    farm_id: UUID
-    lot_id: UUID
+    farm_id: UUID | None
+    lot_id: UUID | None
 
     species_id: UUID
     breed_id: UUID
@@ -81,3 +94,10 @@ class AnimalUpdateSchema(Schema):
     father_id: UUID | None = None
 
     notes: str | None = None
+
+class AnimalParentCandidateSchema(Schema):
+    id: UUID
+    internal_id: str | None
+    name: str | None
+    gender_code: str
+    is_active: bool

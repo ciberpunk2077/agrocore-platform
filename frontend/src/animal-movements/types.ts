@@ -29,3 +29,15 @@ export interface AnimalMovement {
   reason: string | null
   notes: string | null
 }
+
+export interface AnimalMovementUpdatePayload {
+  animal_id: string
+  movement_type_id: string
+  date: string
+  origin_farm_id: string | null
+  origin_lot_id: string | null
+  destination_farm_id: string | null
+  destination_lot_id: string | null
+  reason: string | null
+  notes: string | null
+}

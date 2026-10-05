@@ -1,11 +1,9 @@
 import { apiRequest } from '../lib/api'
-import type { Animal, AnimalWritePayload } from './types'
+import type { Animal, AnimalParentCandidate, AnimalUpdatePayload, AnimalWritePayload } from './types'
 
 export function getAnimals(accessToken: string): Promise<Animal[]> {
   return apiRequest<Animal[]>('/animals/', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    accessToken,
   })
 }
 
@@ -14,9 +12,7 @@ export function getAnimal(
   accessToken: string,
 ): Promise<Animal> {
   return apiRequest<Animal>(`/animals/${animalId}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    accessToken,
   })
 }
 
@@ -27,23 +23,22 @@ export function createAnimal(
 ): Promise<Animal> {
   return apiRequest<Animal>('/animals/', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    accessToken,
     body: JSON.stringify(data),
   })
 }
 
 export function updateAnimal(
   animalId: string,
-  data: AnimalWritePayload,
+  data: AnimalUpdatePayload,
   accessToken: string,
 ): Promise<Animal> {
   return apiRequest<Animal>(`/animals/${animalId}`, {
     method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    accessToken,
     body: JSON.stringify(data),
   })
+}
+export function getParentCandidates(accessToken: string): Promise<AnimalParentCandidate[]> {
+  return apiRequest<AnimalParentCandidate[]>('/animals/parents/candidates', { accessToken })
 }

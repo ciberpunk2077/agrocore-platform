@@ -3,10 +3,11 @@ import { Outlet } from 'react-router-dom'
 import Header from '../components/navigation/Header'
 import Sidebar from '../components/navigation/Sidebar'
 import './AppLayout.css'
+import CurrentContextProvider from '../auth/CurrentContextProvider'
 
 function AppLayout() {
   return (
-    <div className="app-shell">
+    <CurrentContextProvider><div className="app-shell">
       <Header />
 
       <div className="app-shell__body">
@@ -16,7 +17,7 @@ function AppLayout() {
           <Outlet />
         </main>
       </div>
-    </div>
+    </div></CurrentContextProvider>
   )
 }
 

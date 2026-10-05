@@ -379,9 +379,12 @@ class TenantAuthorizationIntegrationTests(TestCase):
                     self.assertEqual(response.json()["id"], str(self.user.pk))
                     self.assertEqual(response.json()["email"], self.user.email)
                 else:
-                    self.assertEqual(response.json(), {
-                        "user": self.user.email, "organization": None,
-                    })
+                    self.assertEqual(response.json()["user"], self.user.email)
+                    self.assertIsNone(response.json()["organization"])
+                    self.assertIsNone(response.json()["membership"])
+                    self.assertIsNone(response.json()["role"])
+                    self.assertFalse(response.json()["can_read"])
+                    self.assertFalse(response.json()["can_write"])
                 self.assertIsNone(get_current_organization())
 
     def test_all_eleven_tenant_mounts_reject_before_domain_logic(self):

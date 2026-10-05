@@ -5,6 +5,9 @@ from ninja.errors import HttpError
 
 from apps.animals.api.schemas import (
     AnimalCreateSchema,
+    AnimalDetailResponseSchema,
+    AnimalParentReferenceSchema,
+    AnimalParentCandidateSchema,
     AnimalResponseSchema,
     AnimalUpdateSchema,
 )
@@ -58,9 +61,22 @@ def list_animals(request):
         for animal in animals
     ]
 
+# Two segments cannot match the single-segment animal detail route,
+# regardless of registration order.
+@router.get("/parents/candidates", response=list[AnimalParentCandidateSchema])
+def parent_candidates(request):
+    return [
+        AnimalParentCandidateSchema(
+            id=animal.id, internal_id=animal.internal_id, name=animal.name,
+            gender_code=animal.gender.code, is_active=animal.is_active,
+        )
+        for animal in AnimalSelector.parent_candidates(request.context)
+    ]
+
+
 @router.get(
     "/{animal_id}",
-    response=AnimalResponseSchema,
+    response=AnimalDetailResponseSchema,
 )
 def get_animal(request, animal_id: UUID):
 
@@ -72,7 +88,19 @@ def get_animal(request, animal_id: UUID):
     if animal is None:
         raise HttpError(404, "Animal no encontrado.")
 
-    return _animal_response(animal)
+    def parent_reference(parent):
+        if parent is None or parent.organization_id != request.context.organization.pk:
+            return None
+        return AnimalParentReferenceSchema(
+            id=parent.id, internal_id=parent.internal_id, name=parent.name,
+            is_active=parent.is_active, is_deleted=parent.deleted_at is not None,
+        )
+
+    return AnimalDetailResponseSchema(
+        **_animal_response(animal).model_dump(),
+        mother_reference=parent_reference(animal.mother),
+        father_reference=parent_reference(animal.father),
+    )
 
 @router.post(
     "/",
@@ -116,7 +144,7 @@ def update_animal(request, animal_id: UUID, payload: AnimalUpdateSchema):
 )
 def delete_animal(
     request,
-    animal_id,
+    animal_id: UUID,
 ):
 
     animal = AnimalSelector.get_by_id(

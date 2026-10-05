@@ -1,59 +1,11 @@
-import { useEffect, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 
-import { getCurrentUser } from './auth.service'
-import { clearSession, getSession } from './session'
-
-type AuthStatus = 'checking' | 'authenticated' | 'unauthenticated'
+import { useSession } from './useSession'
 
 function ProtectedRoute() {
-  const [status, setStatus] = useState<AuthStatus>('checking')
-
-  useEffect(() => {
-    let isActive = true
-
-    async function verifySession() {
-      const session = getSession()
-
-      if (!session) {
-        if (isActive) {
-          setStatus('unauthenticated')
-        }
-
-        return
-      }
-
-      try {
-        await getCurrentUser(session.access)
-
-        if (isActive) {
-          setStatus('authenticated')
-        }
-      } catch {
-        clearSession()
-
-        if (isActive) {
-          setStatus('unauthenticated')
-        }
-      }
-    }
-
-    void verifySession()
-
-    return () => {
-      isActive = false
-    }
-  }, [])
-
-  if (status === 'checking') {
-    return <p>Verificando sesión...</p>
-  }
-
-  if (status === 'unauthenticated') {
-    return <Navigate to="/login" replace />
-  }
-
-  return <Outlet />
+  const { session, revision } = useSession()
+  // CurrentContextProvider validates remotely before rendering business UI.
+  return session ? <Outlet key={revision} /> : <Navigate to="/login" replace />
 }
 
 export default ProtectedRoute

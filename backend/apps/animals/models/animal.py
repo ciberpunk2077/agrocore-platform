@@ -1,4 +1,5 @@
 from django.db import models
+from django.apps import apps
 
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -188,6 +189,12 @@ class Animal(AuditModel):
 
 
         errors = {}
+        if self.birth_weight is not None and self.birth_weight <= 0:
+            errors["birth_weight"] = ValidationError(
+                "El peso al nacimiento debe ser mayor que cero.",
+                code="invalid_birth_weight",
+            )
+
         for field, message in (
             ("mother", "La madre debe pertenecer a la misma organización que el animal."),
             ("father", "El padre debe pertenecer a la misma organización que el animal."),
@@ -237,6 +244,65 @@ class Animal(AuditModel):
             self._validate_genealogy_cycles()
         except ValidationError as error:
             errors = error.update_error_dict(errors)
+        try:
+            self._validate_dependent_history()
+        except ValidationError as error:
+            errors = error.update_error_dict(errors)
+        if errors:
+            raise ValidationError(errors)
+
+    def _validate_dependent_history(self):
+        """Protect historical references only when persisted fields change."""
+        if self._state.adding:
+            return
+        database = self._state.db
+        persisted = Animal._base_manager.using(database).filter(pk=self.pk).values(
+            "gender_id", "birth_date",
+        ).first()
+        if persisted is None:
+            return
+        errors = {}
+        if persisted["gender_id"] != self.gender_id:
+            gender_code = Gender._base_manager.using(database).filter(pk=self.gender_id).values_list(
+                "code", flat=True,
+            ).first()
+            # Missing foreign keys are reported by clean_fields().
+            if gender_code is not None:
+                breeding = apps.get_model("breeding", "BreedingEvent")._base_manager.using(database)
+                animals = Animal._base_manager.using(database)
+                if gender_code != "F" and (
+                    animals.filter(mother_id=self.pk).exists()
+                    or breeding.filter(animal_id=self.pk).exists()
+                ):
+                    errors["gender"] = ValidationError(
+                        "El sexo debe seguir siendo F porque el animal tiene referencias históricas como madre o hembra reproductora.",
+                        code="dependent_gender",
+                    )
+                if gender_code != "M" and (
+                    animals.filter(father_id=self.pk).exists()
+                    or breeding.filter(male_id=self.pk).exists()
+                ):
+                    errors["gender"] = ValidationError(
+                        "El sexo debe seguir siendo M porque el animal tiene referencias históricas como padre o macho reproductor.",
+                        code="dependent_gender",
+                    )
+        if persisted["birth_date"] != self.birth_date and self.birth_date is not None:
+            weights = apps.get_model("weights", "Weight")._base_manager.using(database)
+            if weights.filter(animal_id=self.pk, date__lt=self.birth_date).exists():
+                errors["birth_date"] = ValidationError(
+                    "La fecha de nacimiento no puede ser posterior a un pesaje histórico del animal.",
+                    code="dependent_birth_date",
+                )
+            else:
+                records = apps.get_model("production", "ProductionRecord")._base_manager.using(database)
+                # Match ProductionRecord.clean() exactly, including the active
+                # timezone, without relying on backend-specific date truncation.
+                timestamps = records.filter(animal_id=self.pk).values_list("recorded_at", flat=True)
+                if any(timezone.localdate(timestamp) < self.birth_date for timestamp in timestamps.iterator()):
+                    errors["birth_date"] = ValidationError(
+                        "La fecha de nacimiento no puede ser posterior a un registro histórico de producción del animal.",
+                        code="dependent_birth_date",
+                    )
         if errors:
             raise ValidationError(errors)
 

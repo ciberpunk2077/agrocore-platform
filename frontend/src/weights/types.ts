@@ -27,3 +27,11 @@ export interface WeightCreatePayload {
   weight: number
   notes?: string | null
 }
+
+export interface WeightUpdatePayload {
+  animal_id: string
+  weighing_method_id: string
+  date: string
+  weight: string
+  notes?: string | null
+}

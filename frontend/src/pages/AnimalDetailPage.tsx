@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
+import WriteOnly from '../auth/WriteOnly'
 import { getAnimal } from '../animals/animals.service'
-import type { Animal } from '../animals/types'
+import type { Animal, AnimalParentReference } from '../animals/types'
 import { getSession } from '../auth/session'
 import './AnimalDetailPage.css'
 import WeightHistory from '../weights/components/WeightHistory'
 import WeightForm from '../weights/components/WeightForm'
-import type { WeighingMethod } from '../weights/types'
 import AnimalMovements from '../animal-movements/components/AnimalMovements'
 import Vaccinations from '../vaccinations/components/Vaccinations'
 import Breeding from '../breeding/components/Breeding'
 import Pregnancy from '../pregnancy/components/Pregnancy'
 import Births from '../births/components/Births'
+import ProductionHistory from '../production/components/ProductionHistory'
 
 function getAnimalIdentification(animal: Animal): string {
   return (
@@ -30,11 +31,17 @@ function AnimalDetailPage() {
   return <AnimalDetail key={animalId} animalId={animalId} />
 }
 
+function parentIdentification(id: string | null, parent: AnimalParentReference | null | undefined, empty: string): string {
+  if (!id) return empty
+  if (!parent) return `Referencia · ${id}`
+  const label = [parent.internal_id?.trim(), parent.name?.trim()].filter(Boolean).join(' · ') || id
+  return `${label}${parent.is_deleted ? ' (Referencia histórica)' : parent.is_active ? '' : ' (Inactivo)'}`
+}
+
 function AnimalDetail({ animalId }: { animalId: string | undefined }) {
   const [animal, setAnimal] = useState<Animal | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [weighingMethods, setWeighingMethods] = useState<WeighingMethod[]>([])
   const [weightHistoryVersion, setWeightHistoryVersion] = useState(0)
 
   useEffect(() => {
@@ -109,12 +116,14 @@ function AnimalDetail({ animalId }: { animalId: string | undefined }) {
           <p>Información general del animal</p>
         </div>
 
-        <Link
-          className="animal-detail__edit"
-          to={`/animals/${animal.id}/edit`}
-        >
-          Editar animal
-        </Link>
+        <WriteOnly>
+          <Link
+            className="animal-detail__edit"
+            to={`/animals/${animal.id}/edit`}
+          >
+            Editar animal
+          </Link>
+        </WriteOnly>
       </header>
 
       <div className="animal-detail__card">
@@ -182,18 +191,27 @@ function AnimalDetail({ animalId }: { animalId: string | undefined }) {
             <dt>Notas</dt>
             <dd>{animal.notes?.trim() || '—'}</dd>
           </div>
+          <div className="animal-detail__field">
+            <dt>Madre</dt>
+            <dd>{parentIdentification(animal.mother_id, animal.mother_reference, 'Sin madre registrada')}</dd>
+          </div>
+          <div className="animal-detail__field">
+            <dt>Padre</dt>
+            <dd>{parentIdentification(animal.father_id, animal.father_reference, 'Sin padre registrado')}</dd>
+          </div>
         </dl>
       </div>
-      <WeightForm
-        key={animal.id}
-        animalId={animal.id}
-        onMethodsLoaded={setWeighingMethods}
-        onSaved={() => setWeightHistoryVersion((version) => version + 1)}
-      />
+      <WriteOnly>
+        <WeightForm
+          key={animal.id}
+          animalId={animal.id}
+          onSaved={() => setWeightHistoryVersion((version) => version + 1)}
+        />
+      </WriteOnly>
       <WeightHistory
         key={`${animal.id}-${weightHistoryVersion}`}
         animalId={animal.id}
-        methods={weighingMethods}
+        birthDate={animal.birth_date}
       />
       <AnimalMovements
         key={animal.id}
@@ -203,10 +221,11 @@ function AnimalDetail({ animalId }: { animalId: string | undefined }) {
           current?.id === updated.id ? updated : current,
         )}
       />
-      <Vaccinations key={animal.id} animalId={animal.id} />
+      <Vaccinations key={animal.id} animalId={animal.id} birthDate={animal.birth_date} />
       <Breeding key={animal.id} animal={animal} />
       <Pregnancy key={animal.id} animal={animal} />
       <Births key={animal.id} animal={animal} />
+      <ProductionHistory key={animal.id} animalId={animal.id} />
     </section>
   )
 

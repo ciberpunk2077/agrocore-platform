@@ -13,6 +13,7 @@ from apps.dashboard.api import router as dashboard_router
 from apps.breeding.api import router as breeding_router
 from apps.pregnancy.api import router as pregnancy_router
 from apps.births.api import router as births_router
+from apps.production.api import router as production_router
 from apps.lots.api import router as lots_router
 from apps.common.authentication.ninja_auth import JWTBearer
 from apps.common.authorization import TenantMembershipAccess
@@ -61,3 +62,5 @@ api.add_router("/breeding", breeding_router, auth=TenantMembershipAccess())
 api.add_router("/pregnancies", pregnancy_router, auth=TenantMembershipAccess())
 
 api.add_router("/births", births_router, auth=TenantMembershipAccess())
+
+api.add_router("/production", production_router, auth=TenantMembershipAccess())

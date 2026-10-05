@@ -1,8 +1,10 @@
+import FieldError from '../../components/FieldError'
+import { fieldErrorAttributes, normalizeApiError } from '../../lib/api-errors'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 
 import type { Animal } from '../../animals/types'
 import { getSession } from '../../auth/session'
-import { animalLabel, breedingErrorMessage, createBreeding } from '../breeding.service'
+import { animalLabel, createBreeding } from '../breeding.service'
 import type { BreedingType } from '../types'
 import './BreedingForm.css'
 
@@ -23,6 +25,7 @@ function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormP
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const isActive = useRef(false)
   const submitting = useRef(false)
   const [today, setToday] = useState(() => new Date().toISOString().slice(0, 10))
@@ -60,6 +63,7 @@ function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormP
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setFieldErrors({})
     if (submitting.current || disabled || !isActive.current) return
     setError(null)
 
@@ -76,7 +80,7 @@ function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormP
       return
     }
     if (maleId && !males.some((male) => male.id === maleId)) {
-      setError('Selecciona un macho disponible de la misma especie o deja el campo vacío.')
+      setError('Selecciona un macho disponible o deja el campo vacío.')
       return
     }
     const session = getSession()
@@ -99,7 +103,9 @@ function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormP
       }, session.access)
     } catch (cause) {
       if (isActive.current) {
-        setError(breedingErrorMessage(cause, 'No fue posible registrar el evento reproductivo. Revisa los datos e intenta de nuevo.'))
+        const normalized = normalizeApiError(cause, 'No fue posible registrar el evento reproductivo. Revisa los datos e intenta de nuevo.')
+        setError(normalized.message)
+        setFieldErrors(normalized.fieldErrors)
       }
       return
     } finally {
@@ -125,37 +131,43 @@ function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormP
         <fieldset disabled={isSubmitting || disabled}>
           <div className="breeding-form__field">
             <label htmlFor="breeding-type">Tipo de reproducción</label>
-            <select id="breeding-type" value={typeId} onChange={(event) => setTypeId(event.target.value)} required>
+            <select id="breeding-type" {...fieldErrorAttributes(fieldErrors, 'breeding_type_id', 'breeding-type')} value={typeId} onChange={(event) => setTypeId(event.target.value)} required>
               <option value="">Selecciona un tipo</option>
               {types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
             </select>
+            <FieldError errors={fieldErrors} field="breeding_type_id" controlId="breeding-type" />
             {types.length === 0 && <p>No hay tipos de reproducción disponibles.</p>}
           </div>
           <div className="breeding-form__field">
             <label htmlFor="breeding-male">Macho (opcional)</label>
-            <select id="breeding-male" value={maleId} onChange={(event) => setMaleId(event.target.value)}>
+            <select id="breeding-male" {...fieldErrorAttributes(fieldErrors, 'male_id', 'breeding-male')} value={maleId} onChange={(event) => setMaleId(event.target.value)}>
               <option value="">Sin macho</option>
               {males.map((male) => <option key={male.id} value={male.id}>{animalLabel(male)}</option>)}
             </select>
-            {males.length === 0 && <p>No hay machos disponibles de la misma especie. Puedes guardar sin macho.</p>}
+            <FieldError errors={fieldErrors} field="male_id" controlId="breeding-male" />
+            {males.length === 0 && <p>No hay machos disponibles. Puedes guardar sin macho.</p>}
           </div>
           <div className="breeding-form__field">
             <label htmlFor="breeding-date">Fecha</label>
-            <input id="breeding-date" type="date" value={date} max={today}
+            <input id="breeding-date" {...fieldErrorAttributes(fieldErrors, 'date', 'breeding-date')} type="date" value={date} max={today}
               onChange={(event) => setDate(event.target.value)} required />
+            <FieldError errors={fieldErrors} field="date" controlId="breeding-date" />
           </div>
           <div className="breeding-form__field">
             <label htmlFor="breeding-expected-birth">Fecha estimada de parto (opcional)</label>
-            <input id="breeding-expected-birth" type="date" value={expectedBirth}
+            <input id="breeding-expected-birth" {...fieldErrorAttributes(fieldErrors, 'expected_birth', 'breeding-expected-birth')} type="date" value={expectedBirth}
               onChange={(event) => setExpectedBirth(event.target.value)} />
+            <FieldError errors={fieldErrors} field="expected_birth" controlId="breeding-expected-birth" />
           </div>
           <div className="breeding-form__field">
             <label htmlFor="breeding-technician">Técnico (opcional)</label>
-            <input id="breeding-technician" value={technician} onChange={(event) => setTechnician(event.target.value)} />
+            <input id="breeding-technician" {...fieldErrorAttributes(fieldErrors, 'technician', 'breeding-technician')} value={technician} onChange={(event) => setTechnician(event.target.value)} />
+            <FieldError errors={fieldErrors} field="technician" controlId="breeding-technician" />
           </div>
           <div className="breeding-form__field breeding-form__wide">
             <label htmlFor="breeding-notes">Notas (opcional)</label>
-            <textarea id="breeding-notes" rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} />
+            <textarea id="breeding-notes" {...fieldErrorAttributes(fieldErrors, 'notes', 'breeding-notes')} rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} />
+            <FieldError errors={fieldErrors} field="notes" controlId="breeding-notes" />
           </div>
           <button type="submit">{isSubmitting ? 'Guardando...' : 'Guardar evento reproductivo'}</button>
         </fieldset>

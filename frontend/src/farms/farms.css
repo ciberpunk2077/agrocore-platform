@@ -1,0 +1,17 @@
+.farms-page { display: flex; flex-direction: column; gap: 24px; }
+.farm-form { max-width: 1000px; display: flex; flex-direction: column; gap: 16px; }
+.farm-form fieldset { margin: 0; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.farm-form__field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.farm-form__field input, .farm-form__field select, .farm-form__field textarea { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; }
+.farms-page h1 { margin: 0; color: #0f172a; font-size: 1.75rem; }
+.farms-back, .farms-table a { color: #047857; }
+.farms-back { align-self: flex-start; }
+.farms-table-wrapper { overflow-x: auto; }
+.farms-table { width: 100%; border-collapse: collapse; background: #fff; }
+.farms-table__caption { text-align: left; padding: 12px; color: #64748b; }
+.farms-table th, .farms-table td { text-align: left; padding: 14px 18px; border-bottom: 1px solid #e2e8f0; }
+.farms-detail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; max-width: 1000px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+.farms-detail > div { padding: 18px 20px; border-bottom: 1px solid #e2e8f0; }
+.farms-detail dt { margin-bottom: 6px; color: #64748b; font-size: 0.8125rem; font-weight: 600; }
+.farms-detail dd { margin: 0; color: #0f172a; overflow-wrap: anywhere; white-space: pre-wrap; }
+@media (max-width: 700px) { .farms-detail { grid-template-columns: 1fr; } }

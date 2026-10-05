@@ -1,4 +1,4 @@
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from django.utils import timezone
@@ -16,6 +16,38 @@ from apps.common.services import BaseCRUDService
 
 
 class AnimalMovementService:
+
+    @staticmethod
+    def _full_clean(movement):
+        try:
+            movement.full_clean()
+        except ValidationError as error:
+            allowed = {
+                "reason": {"max_length"},
+                "date": {"invalid"},
+                "animal": {"invalid"},
+                "movement_type": {"invalid"},
+                "origin_farm": {"invalid"},
+                "origin_lot": {"invalid"},
+                "destination_farm": {"invalid"},
+                "destination_lot": {"invalid"},
+            }
+            errors = getattr(error, "error_dict", {})
+            if errors and all(
+                item.code in allowed.get(field, set())
+                for field, items in errors.items() for item in items
+            ):
+                raise BusinessException(" ".join(error.messages)) from error
+            raise
+
+    @staticmethod
+    def _load_payload_relation(model, identifier, field):
+        try:
+            return model.objects.get(pk=identifier)
+        except model.DoesNotExist as error:
+            raise BusinessException(
+                f"La relación {field} no existe o no está activa."
+            ) from error
 
     @staticmethod
     @transaction.atomic
@@ -52,11 +84,11 @@ class AnimalMovementService:
                 destination_farm=relations["destination_farm"],
                 destination_lot=relations["destination_lot"],
                 date=data.date,
-                reason=data.reason,
-                notes=data.notes,
+                reason="" if data.reason is None else data.reason,
+                notes="" if data.notes is None else data.notes,
             )
 
-            movement.full_clean()
+            AnimalMovementService._full_clean(movement)
             movement.save()
 
             AnimalMovementService._update_animal_location(
@@ -66,11 +98,6 @@ class AnimalMovementService:
 
             return movement
 
-        except ObjectDoesNotExist:
-            raise ValidationError(
-                "Uno de los registros relacionados no existe."
-            )
-
         except ValidationError:
             raise
 
@@ -79,22 +106,22 @@ class AnimalMovementService:
     def _load_relations(data):
 
         return {
-            "animal": Animal.objects.get(id=data.animal_id),
-            "movement_type": MovementType.objects.get(id=data.movement_type_id, is_active=True,),
+            "animal": AnimalMovementService._load_payload_relation(Animal, data.animal_id, "animal"),
+            "movement_type": AnimalMovementService._load_payload_relation(MovementType, data.movement_type_id, "movement_type"),
             "origin_farm": (
-                Farm.objects.get(id=data.origin_farm_id)
+                AnimalMovementService._load_payload_relation(Farm, data.origin_farm_id, "origin_farm")
                 if data.origin_farm_id else None
             ),
             "origin_lot": (
-                Lot.objects.get(id=data.origin_lot_id)
+                AnimalMovementService._load_payload_relation(Lot, data.origin_lot_id, "origin_lot")
                 if data.origin_lot_id else None
             ),
             "destination_farm": (
-                Farm.objects.get(id=data.destination_farm_id)
+                AnimalMovementService._load_payload_relation(Farm, data.destination_farm_id, "destination_farm")
                 if data.destination_farm_id else None
             ),
             "destination_lot": (
-                Lot.objects.get(id=data.destination_lot_id)
+                AnimalMovementService._load_payload_relation(Lot, data.destination_lot_id, "destination_lot")
                 if data.destination_lot_id else None
             ),
         }
@@ -113,12 +140,12 @@ class AnimalMovementService:
         destination_lot = relations["destination_lot"]
 
         if animal.organization_id != context.organization.id:
-            raise ValidationError(
+            raise BusinessException(
                 "El animal no pertenece a la organización actual."
             )
 
         if not animal.is_active:
-            raise ValidationError(
+            raise BusinessException(
                 "No es posible registrar movimientos para un animal inactivo."
             )
 
@@ -128,12 +155,12 @@ class AnimalMovementService:
             and origin_farm
             and animal.farm_id != origin_farm.id
         ):
-            raise ValidationError(
+            raise BusinessException(
                 "La unidad productiva origen no coincide con la ubicación actual del animal."
             )
 
         if origin_farm and origin_farm.organization_id != context.organization.id:
-            raise ValidationError(
+            raise BusinessException(
                 "La unidad productiva origen no pertenece a la organización."
             )
 
@@ -142,51 +169,56 @@ class AnimalMovementService:
                 "El lote origen no pertenece a la organización."
             )
 
+        if destination_farm and destination_farm.organization_id != context.organization.id:
+            raise BusinessException(
+                "La unidad productiva destino no pertenece a la organización."
+            )
+
         if destination_lot and destination_lot.organization_id != context.organization.id:
             raise BusinessException(
                 "El lote destino no pertenece a la organización."
             )
 
         if origin_farm and not origin_farm.is_active:
-            raise ValidationError(
+            raise BusinessException(
                 "La unidad productiva origen está inactiva."
             )
 
         if destination_farm and not destination_farm.is_active:
-            raise ValidationError(
+            raise BusinessException(
                 "La unidad productiva destino está inactiva."
             )
 
         if origin_lot and not origin_lot.is_active:
-            raise ValidationError(
+            raise BusinessException(
                 "El lote origen está inactivo."
             )
 
         if destination_lot and not destination_lot.is_active:
-            raise ValidationError(
+            raise BusinessException(
                 "El lote destino está inactivo."
             )
         
 
         if origin_lot and not origin_farm:
-            raise ValidationError(
+            raise BusinessException(
                 "No se puede indicar un lote origen sin una unidad productiva origen."
             )
 
         if destination_lot and not destination_farm:
-            raise ValidationError(
+            raise BusinessException(
                 "No se puede indicar un lote destino sin una unidad productiva destino."
             )
 
         if origin_lot and origin_farm:
             if origin_lot.farm_id != origin_farm.id:
-                raise ValidationError(
+                raise BusinessException(
                     "El lote origen no pertenece a la unidad productiva origen."
                 )
 
         if destination_lot and destination_farm:
             if destination_lot.farm_id != destination_farm.id:
-                raise ValidationError(
+                raise BusinessException(
                     "El lote destino no pertenece a la unidad productiva destino."
                 )
 
@@ -195,7 +227,7 @@ class AnimalMovementService:
             and origin_lot
             and animal.lot_id != origin_lot.id
         ):
-            raise ValidationError(
+            raise BusinessException(
                 "El animal no se encuentra actualmente en el lote origen."
             )
 
@@ -204,7 +236,7 @@ class AnimalMovementService:
     def _validate_business_rules(data, relations, is_update=False):
 
         if data.date > timezone.localdate():
-            raise ValidationError(
+            raise BusinessException(
                 "La fecha del movimiento no puede ser futura."
             )
 
@@ -398,10 +430,10 @@ class AnimalMovementService:
 
         if (
             previous_movement
-            and new_date < previous_movement.date
+            and new_date <= previous_movement.date
         ):
             raise BusinessException(
-                "La fecha del movimiento no puede ser anterior a otro movimiento existente del animal."
+                "La fecha del movimiento debe ser posterior al movimiento activo anterior."
             )
 
 
@@ -433,7 +465,7 @@ class AnimalMovementService:
         )
 
         if movement.animal_id != relations["animal"].id:
-            raise ValidationError(
+            raise BusinessException(
                 "No se puede cambiar el animal de un movimiento existente."
             )
 
@@ -445,6 +477,15 @@ class AnimalMovementService:
                 "No se puede cambiar la ubicación de origen de un movimiento existente."
             )
 
+        previous_state = AnimalMovement._base_manager.values(
+            "movement_type_id", "destination_farm_id", "destination_lot_id",
+        ).get(pk=movement.pk)
+        type_changed = previous_state["movement_type_id"] != relations["movement_type"].pk
+        destination_changed = (
+            previous_state["destination_farm_id"] != data.destination_farm_id
+            or previous_state["destination_lot_id"] != data.destination_lot_id
+        )
+
         movement.animal = relations["animal"]
         movement.movement_type = relations["movement_type"]
 
@@ -455,22 +496,30 @@ class AnimalMovementService:
         movement.destination_lot = relations["destination_lot"]
 
         movement.date = data.date
-        movement.reason = data.reason
-        movement.notes = data.notes
+        movement.reason = "" if data.reason is None else data.reason
+        movement.notes = "" if data.notes is None else data.notes
 
         # is_latest_movement = AnimalMovementService._is_latest_movement(
         #     movement,
         #     relations["animal"],
         # )
 
-        movement.full_clean()
+        AnimalMovementService._full_clean(movement)
         movement.save()
 
-        AnimalMovementService._update_animal_location(
-            relations["animal"],
-            relations,
-            origin_status=movement.origin_status,
-        )
+        if type_changed:
+            AnimalMovementService._update_animal_location(
+                relations["animal"],
+                relations,
+                origin_status=movement.origin_status,
+            )
+        elif destination_changed:
+            # Existing type rules reject destinations for EXIT/SALE.
+            # Omitting origin_status preserves independently edited status.
+            AnimalMovementService._update_animal_location(
+                relations["animal"],
+                relations,
+            )
 
         return movement
 

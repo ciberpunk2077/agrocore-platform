@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from django.db.models import Avg
+from django.db.models import Avg, OuterRef, Subquery
 from django.utils import timezone
 
 from apps.animals.models import Animal
@@ -59,14 +59,26 @@ class DashboardSelector:
             next_application_date__lte=today,
         ).count()
 
-        average_weight = (
+        latest_weight = (
             Weight.objects
+            .filter(
+                organization=organization,
+                animal_id=OuterRef("pk"),
+                is_active=True,
+            )
+            .order_by("-date")
+            .values("weight")[:1]
+        )
+
+        average_weight = (
+            Animal.objects
             .filter(
                 organization=organization,
                 is_active=True,
             )
+            .annotate(latest_weight=Subquery(latest_weight))
             .aggregate(
-                average=Avg("weight"),
+                average=Avg("latest_weight"),
             )
             ["average"]
         )

@@ -60,6 +60,16 @@ class Pregnancy(AuditModel):
             "-diagnosis_date",
         ]
 
+        constraints = [
+            models.UniqueConstraint(
+                fields=["animal"],
+                condition=models.Q(status=PregnancyStatus.ACTIVE, is_active=True),
+                name="unique_active_pregnancy_per_animal",
+                violation_error_code="active_pregnancy",
+                violation_error_message="El animal ya tiene una gestación activa.",
+            ),
+        ]
+
         indexes = [
             models.Index(fields=["organization"]),
             models.Index(fields=["animal"]),

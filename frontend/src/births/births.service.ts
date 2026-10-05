@@ -1,4 +1,5 @@
-import { ApiError, apiRequest } from '../lib/api'
+import { apiRequest } from '../lib/api'
+import { normalizeApiError } from '../lib/api-errors'
 import type { BirthCreatePayload, BirthRecord } from './types'
 
 export function createBirth(
@@ -7,7 +8,7 @@ export function createBirth(
 ): Promise<BirthRecord> {
   return apiRequest<BirthRecord>('/births/', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
+    accessToken,
     body: JSON.stringify(data),
   })
 }
@@ -20,28 +21,12 @@ export function getAnimalBirthHistory(
   return apiRequest<BirthRecord[]>(
     `/births/animal/${animalId}/history`,
     {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      accessToken,
       signal,
     },
   )
 }
 
-export function birthErrorMessage(
-  cause: unknown,
-  fallback: string,
-): string {
-  if (
-    cause instanceof ApiError &&
-    cause.data &&
-    typeof cause.data === 'object' &&
-    'detail' in cause.data
-  ) {
-    const detail = cause.data.detail
-
-    if (typeof detail === 'string' && detail.trim()) {
-      return detail
-    }
-  }
-
-  return fallback
+export function birthErrorMessage(cause: unknown, fallback: string): string {
+  return normalizeApiError(cause, fallback).message
 }

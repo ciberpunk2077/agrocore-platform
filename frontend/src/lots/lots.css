@@ -1,0 +1,15 @@
+.lots-page, .farm-lots { display: flex; flex-direction: column; gap: 24px; }
+.lot-form { display: flex; flex-direction: column; gap: 16px; max-width: 1000px; }
+.lot-form fieldset { margin: 0; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.lot-form__field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.lot-form__field input, .lot-form__field select, .lot-form__field textarea { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; }
+.lots-page h1, .farm-lots h2 { margin: 0; color: #0f172a; }
+.lots-page a, .farm-lots a { color: #047857; }
+.lots-table-wrapper { overflow-x: auto; }
+.lots-table { width: 100%; border-collapse: collapse; background: #fff; }
+.lots-table caption { text-align: left; padding: 12px; color: #64748b; }
+.lots-table th, .lots-table td { text-align: left; padding: 14px 18px; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
+.lots-detail { margin: 0; max-width: 1000px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }
+.lots-detail > div { padding: 18px 20px; border-bottom: 1px solid #e2e8f0; }
+.lots-detail dt { margin-bottom: 6px; color: #64748b; font-size: 0.8125rem; font-weight: 600; }
+.lots-detail dd { margin: 0; color: #0f172a; overflow-wrap: anywhere; white-space: pre-wrap; }

@@ -1,0 +1,6 @@
+.production-form { padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.production-form h3 { margin-top: 0; }
+.production-form fieldset { display: grid; gap: 10px; border: 0; padding: 0; margin: 0; }
+.production-form input, .production-form select, .production-form textarea { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; min-width: 0; }
+.production-form button { justify-self: start; }
+.production-form [aria-invalid="true"] { border-color: #b91c1c; }

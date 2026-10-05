@@ -1,7 +1,10 @@
+import { normalizeApiError } from '../../lib/api-errors'
 import { useEffect, useRef, useState } from 'react'
 
+import WriteOnly from '../../auth/WriteOnly'
 import { getAnimals } from '../../animals/animals.service'
-import type { Animal } from '../../animals/types'
+import { getGenders } from '../../animals/animal-options.service'
+import type { Animal, Gender } from '../../animals/types'
 import { getSession } from '../../auth/session'
 import { getAnimalBreedingHistory, getBreedingTypes } from '../../breeding/breeding.service'
 import type { BreedingEvent, BreedingType } from '../../breeding/types'
@@ -15,6 +18,7 @@ interface PregnancyData {
   history: PregnancyRecord[]
   types: BreedingType[]
   animals: Animal[]
+  genders: Gender[]
 }
 
 function Pregnancy({ animal }: { animal: Animal }) {
@@ -26,6 +30,7 @@ function AnimalPregnancy({ animal }: { animal: Animal }) {
   const [attempt, setAttempt] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const [success, setSuccess] = useState<string | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -53,12 +58,13 @@ function AnimalPregnancy({ animal }: { animal: Animal }) {
         return
       }
       try {
-        const [events, history, types, animals] = await Promise.all([
+        const [events, history, types, animals, genders] = await Promise.all([
           getAnimalBreedingHistory(animal.id, session.access, controller.signal),
           getAnimalPregnancyHistory(animal.id, session.access, controller.signal),
           getBreedingTypes(session.access), getAnimals(session.access),
+          getGenders(session.access),
         ])
-        if (!controller.signal.aborted) setData({ events, history, types, animals })
+        if (!controller.signal.aborted) setData({ events, history, types, animals, genders })
       } catch (cause) {
         if (!controller.signal.aborted) setLoadError(pregnancyErrorMessage(cause, 'No fue posible cargar los datos de gestación.'))
       }
@@ -100,11 +106,12 @@ function AnimalPregnancy({ animal }: { animal: Animal }) {
     }
   }
 
-  async function mutate(operation: (token: string) => Promise<PregnancyRecord>, message: string): Promise<boolean> {
+  async function mutate(operation: (token: string) => Promise<PregnancyRecord>, message: string, showFieldErrors = false): Promise<boolean> {
     if (!active.current || locked.current || !data) return false
     locked.current = true
     setBusy(true)
     setError(null)
+    setFieldErrors({})
     setSuccess(null)
     const session = getSession()
     if (!session) {
@@ -118,7 +125,9 @@ function AnimalPregnancy({ animal }: { animal: Animal }) {
       saved = await operation(session.access)
     } catch (cause) {
       if (active.current) {
-        setError(pregnancyErrorMessage(cause, 'No fue posible guardar la operación. Revisa los datos e intenta de nuevo.'))
+        const normalized = normalizeApiError(cause, 'No fue posible guardar la operación. Revisa los datos e intenta de nuevo.')
+        setError(normalized.message)
+        setFieldErrors(showFieldErrors ? normalized.fieldErrors : {})
         locked.current = false
         setBusy(false)
       }
@@ -137,6 +146,16 @@ function AnimalPregnancy({ animal }: { animal: Animal }) {
 
   const usedEvents = new Set(data?.history.map((item) => item.breeding_id))
   const availableEvents = data?.events.filter((event) => event.animal_id === animal.id && !usedEvents.has(event.id)) ?? []
+  const femaleGenderId = data?.genders.find((gender) => gender.code === 'F')?.id
+  const creationUnavailable = !animal.is_active
+    ? 'No es posible registrar una gestación para un animal inactivo.'
+    : !femaleGenderId || animal.gender_id !== femaleGenderId
+    ? 'El registro de gestaciones está disponible para hembras activas.'
+    : data?.history.some((item) => item.animal_id === animal.id && item.status === 'ACTIVE')
+    ? 'El animal ya tiene una gestación activa.'
+    : availableEvents.length === 0
+    ? 'No hay eventos reproductivos disponibles para registrar una gestación.'
+    : null
   const typeNames = new Map(data?.types.map((type) => [type.id, type.name]))
   const animalNames = new Map(data?.animals.map((item) => [item.id,
     [item.name?.trim(), item.internal_id?.trim()].filter(Boolean).join(' · ') || 'Macho sin identificación',
@@ -148,8 +167,8 @@ function AnimalPregnancy({ animal }: { animal: Animal }) {
   ].join(' · ')]))
 
   function handleCreate(payload: PregnancyCreatePayload) {
-    if (payload.animal_id !== animal.id || !availableEvents.some((event) => event.id === payload.breeding_id)) return Promise.resolve(false)
-    return mutate((token) => createPregnancy(payload, token), 'La gestación ya fue guardada correctamente.')
+    if (creationUnavailable || payload.animal_id !== animal.id || !availableEvents.some((event) => event.id === payload.breeding_id)) return Promise.resolve(false)
+    return mutate((token) => createPregnancy(payload, token), 'La gestación ya fue guardada correctamente.', true)
   }
 
   function handleAbort(item: PregnancyRecord) {
@@ -175,8 +194,11 @@ function AnimalPregnancy({ animal }: { animal: Animal }) {
       <button type="button" disabled={busy || Boolean(syncError)} onClick={() => {
         if (!locked.current) void synchronize(true)
       }}>Actualizar eventos disponibles</button>
-      <PregnancyForm animal={animal} events={availableEvents} eventLabels={eventLabels}
-        disabled={busy || Boolean(syncError) || !animal.is_active} onCreate={handleCreate} />
+      <WriteOnly>
+        {creationUnavailable ? <p role="status">{creationUnavailable}</p> : <PregnancyForm animal={animal} events={availableEvents} eventLabels={eventLabels}
+          disabled={busy || Boolean(syncError) || !animal.is_active} onCreate={handleCreate}
+          fieldErrors={fieldErrors} onClearErrors={() => { setError(null); setFieldErrors({}) }} />}
+      </WriteOnly>
       <PregnancyHistory history={data.history} eventLabels={eventLabels}
         disabled={busy || Boolean(syncError)} onAbort={handleAbort} />
     </>}

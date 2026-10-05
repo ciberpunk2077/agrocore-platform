@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import WriteOnly from '../auth/WriteOnly'
 import AnimalTable from '../animals/components/AnimalTable'
 import { getAnimals } from '../animals/animals.service'
 import type { Animal } from '../animals/types'
@@ -65,9 +66,11 @@ function AnimalsPage() {
         <h1>Animales</h1>
         <p>Gestión y consulta del inventario ganadero</p>
       </header>
-      <Link to="/animals/new">
-        Nuevo animal
-      </Link>
+      <WriteOnly>
+        <Link to="/animals/new">
+          Nuevo animal
+        </Link>
+      </WriteOnly>
 
       {animals.length === 0 ? (
         <p>No hay animales registrados.</p>

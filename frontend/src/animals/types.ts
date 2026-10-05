@@ -1,3 +1,11 @@
+export interface AnimalParentReference {
+  id: string
+  internal_id: string | null
+  name: string | null
+  is_active: boolean
+  is_deleted: boolean
+}
+
 export interface Animal {
   id: string
   internal_id: string | null
@@ -28,6 +36,8 @@ export interface Animal {
 
   mother_id: string | null
   father_id: string | null
+  mother_reference?: AnimalParentReference | null
+  father_reference?: AnimalParentReference | null
 
   notes: string | null
   is_active: boolean
@@ -51,6 +61,11 @@ export interface AnimalWritePayload {
   mother_id?: string | null
   father_id?: string | null
   notes?: string | null
+}
+
+export type AnimalUpdatePayload = Omit<AnimalWritePayload, 'farm_id' | 'lot_id'> & {
+  farm_id: string | null
+  lot_id: string | null
 }
 
 export interface Species {
@@ -100,4 +115,11 @@ export interface Lot {
   name: string
   description: string
   capacity: number
+}
+export interface AnimalParentCandidate {
+  id: string
+  internal_id: string | null
+  name: string | null
+  gender_code: string
+  is_active: boolean
 }

@@ -57,6 +57,16 @@ class Weight(AuditModel):
 
         ordering = ["-date"]
 
+        constraints = [
+            models.UniqueConstraint(
+                fields=["animal", "date"],
+                condition=models.Q(is_active=True),
+                name="unique_active_weight_per_animal_date",
+                violation_error_code="active_weight_duplicate",
+                violation_error_message="Ya existe un pesaje registrado para este animal en esa fecha.",
+            ),
+        ]
+
         indexes = [
             models.Index(fields=["organization"]),
             models.Index(fields=["animal"]),
@@ -86,6 +96,11 @@ class Weight(AuditModel):
                 "animal": (
                     "El animal no pertenece a la organización seleccionada."
                 )
+            })
+
+        if self.animal.birth_date is not None and self.date < self.animal.birth_date:
+            raise ValidationError({
+                "date": "La fecha del pesaje no puede ser anterior al nacimiento del animal."
             })
 
     def __str__(self):

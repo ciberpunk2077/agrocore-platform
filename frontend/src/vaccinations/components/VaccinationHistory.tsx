@@ -1,20 +1,27 @@
 import { useEffect, useState } from 'react'
+import WriteOnly from '../../auth/WriteOnly'
 
-import { getSession } from '../../auth/session'
+import { getSession, getSessionRevision } from '../../auth/session'
 import type { Vaccination } from '../types'
 import { getAnimalVaccinationHistory, vaccinationErrorMessage } from '../vaccinations.service'
 import './VaccinationHistory.css'
 
 interface VaccinationHistoryProps {
   animalId: string
-  version: number
+  saved: 'created' | 'updated' | 'deleted' | null
+  excludedIds?: string[]
+  actionsDisabled: boolean
+  onEdit: (id: string) => void
+  onView: (id: string) => void
+  onDelete: (id: string) => void
+  onLoaded: () => void
 }
 
 function formatDate(date: string) {
   return date.split('-').reverse().join('/')
 }
 
-function VaccinationHistory({ animalId, version }: VaccinationHistoryProps) {
+function VaccinationHistory({ animalId, saved, actionsDisabled, onEdit, onView, onDelete, onLoaded, excludedIds = [] }: VaccinationHistoryProps) {
   const [history, setHistory] = useState<Vaccination[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -22,6 +29,8 @@ function VaccinationHistory({ animalId, version }: VaccinationHistoryProps) {
 
   useEffect(() => {
     const controller = new AbortController()
+    const revision = getSessionRevision()
+    const current = () => !controller.signal.aborted && revision === getSessionRevision()
 
     async function load() {
       setIsLoading(true)
@@ -34,37 +43,37 @@ function VaccinationHistory({ animalId, version }: VaccinationHistoryProps) {
       }
       try {
         const data = await getAnimalVaccinationHistory(animalId, session.access, controller.signal)
-        if (!controller.signal.aborted) setHistory(data)
+        if (current()) { setHistory(data); onLoaded() }
       } catch (cause) {
-        if (!controller.signal.aborted) {
+        if (current()) {
           setError(vaccinationErrorMessage(cause, 'No fue posible cargar el historial de vacunaciones.'))
         }
       } finally {
-        if (!controller.signal.aborted) setIsLoading(false)
+        if (current()) setIsLoading(false)
       }
     }
 
     void load()
     return () => controller.abort()
-  }, [animalId, version, attempt])
+  }, [animalId, attempt, onLoaded])
 
   return (
     <section className="vaccination-history">
       <h3>Historial de vacunaciones</h3>
       {isLoading ? <p role="status">Cargando vacunaciones...</p> : error ? (
         <div>
-          {version > 0 && <p role="status">La vacunación se guardó. Actualiza el historial; no necesitas volver a registrarla.</p>}
+          {saved && <p role="status">La vacunación fue {saved === 'deleted' ? 'eliminada' : saved === 'updated' ? 'actualizada' : 'registrada'}, pero no se pudo actualizar el historial. Reintenta solamente la consulta.</p>}
           <p role="alert">{error}</p>
           <button type="button" onClick={() => setAttempt((value) => value + 1)}>Actualizar historial</button>
         </div>
-      ) : history.length === 0 ? <p>Todavía no hay vacunaciones para este animal.</p> : (
+      ) : history.filter((item) => !excludedIds.includes(item.id)).length === 0 ? <p>Todavía no hay vacunaciones para este animal.</p> : (
         <div className="vaccination-history__table-wrapper">
           <table>
             <thead>
-              <tr><th scope="col">Fecha de aplicación</th><th scope="col">Vacuna</th><th scope="col">Dosis</th><th scope="col">Próxima aplicación</th></tr>
+              <tr><th scope="col">Fecha de aplicación</th><th scope="col">Vacuna</th><th scope="col">Dosis</th><th scope="col">Próxima aplicación</th><th scope="col">Acciones</th></tr>
             </thead>
             <tbody>
-              {history.map((item) => (
+              {history.filter((item) => !excludedIds.includes(item.id)).map((item) => (
                 <tr key={item.id}>
                   <td>{formatDate(item.application_date)}</td>
                   <td>
@@ -82,6 +91,11 @@ function VaccinationHistory({ animalId, version }: VaccinationHistoryProps) {
                   </td>
                   <td>{item.dose}</td>
                   <td>{item.next_application_date ? formatDate(item.next_application_date) : '—'}</td>
+                  <td>
+                    <button type="button" disabled={actionsDisabled} onClick={() => onView(item.id)}>Ver detalles</button>
+                    <WriteOnly><button type="button" disabled={actionsDisabled} onClick={() => onEdit(item.id)}>Editar</button></WriteOnly>
+                    <WriteOnly><button type="button" disabled={actionsDisabled} onClick={() => onDelete(item.id)}>Eliminar</button></WriteOnly>
+                  </td>
                 </tr>
               ))}
             </tbody>

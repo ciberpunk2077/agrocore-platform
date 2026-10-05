@@ -21,3 +21,14 @@ export interface Vaccination {
   notes: string | null
   is_active: boolean
 }
+
+export interface VaccinationUpdatePayload {
+  animal_id: string
+  vaccine_name: string
+  application_date: string
+  next_application_date: string | null
+  dose: string
+  batch: string | null
+  veterinarian: string | null
+  notes: string | null
+}

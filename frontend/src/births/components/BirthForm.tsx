@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import FieldError from '../../components/FieldError'
+import { fieldErrorAttributes } from '../../lib/api-errors'
+import { useMemo, useState } from 'react'
 import './BirthForm.css'
 import type { Animal, Gender } from '../../animals/types'
 import type { BreedingEvent } from '../../breeding/types'
@@ -12,6 +14,8 @@ interface BirthFormProps {
   animals: Animal[]
   genders: Gender[]
   disabled: boolean
+  fieldErrors: Record<string, string[]>
+  onClearErrors: () => void
   onCreate: (payload: BirthCreatePayload) => Promise<boolean>
 }
 
@@ -38,6 +42,8 @@ function BirthForm({
   genders,
   disabled,
   onCreate,
+  fieldErrors,
+  onClearErrors,
 }: BirthFormProps) {
   const [pregnancyId, setPregnancyId] = useState('')
   const [birthDate, setBirthDate] = useState('')
@@ -109,52 +115,25 @@ function BirthForm({
       (candidate) =>
         candidate.id !== animal.id &&
         candidate.is_active &&
-        candidate.species_id === animal.species_id,
+        (candidate.mother_id === null || candidate.mother_id === animal.id),
     )
-  }, [animals, animal.id, animal.species_id])
+  }, [animals, animal.id])
 
-  useEffect(() => {
-    if (!pregnancyId) {
-      setBirthDate('')
-      return
-    }
+  const [dateContext, setDateContext] = useState({
+    pregnancyId, pregnancies, breedings, today,
+  })
 
-    const pregnancy = pregnancies.find(
-      (item) => item.id === pregnancyId,
-    )
-
-    if (!pregnancy) {
-      setBirthDate('')
-      return
-    }
-
-    const breeding = breedings.find(
-      (event) => event.id === pregnancy.breeding_id,
-    )
-
-    const dates = [
-      pregnancy.diagnosis_date,
-      breeding?.date,
-    ].filter(Boolean) as string[]
-
-    const minimum = dates.sort().at(-1) ?? ''
-
-    setBirthDate((current) => {
-      if (!current) {
-        return minimum
-      }
-
-      if (current < minimum) {
-        return minimum
-      }
-
-      if (current > today) {
-        return today
-      }
-
-      return current
-    })
-  }, [pregnancyId, pregnancies, breedings, today])
+  // Adjust only when the selection or its source data changes, not while typing.
+  // A conditional render adjustment avoids committing a date from the old context.
+  if (dateContext.pregnancyId !== pregnancyId ||
+      dateContext.pregnancies !== pregnancies ||
+      dateContext.breedings !== breedings || dateContext.today !== today) {
+    setDateContext({ pregnancyId, pregnancies, breedings, today })
+    const nextDate = !selectedPregnancy ? ''
+      : !birthDate || birthDate < minimumBirthDate ? minimumBirthDate
+      : birthDate > today ? today : birthDate
+    if (nextDate !== birthDate) setBirthDate(nextDate)
+  }
 
   function resetForm() {
     setPregnancyId('')
@@ -179,6 +158,7 @@ function BirthForm({
     }
 
     setError(null)
+    onClearErrors()
 
     if (!pregnancyId) {
       setError(
@@ -256,11 +236,17 @@ function BirthForm({
       return
     }
 
+    if (calfMode === 'existing' && (!alive ||
+        !availableCalves.some((candidate) => candidate.id === calfId))) {
+      setError('Selecciona una cría existente disponible únicamente para un parto vivo.')
+      return
+    }
+
     const payload: BirthCreatePayload = {
       pregnancy_id: pregnancyId,
       mother_id: animal.id,
       calf_id:
-        calfMode === 'existing'
+        alive && calfMode === 'existing'
           ? calfId
           : null,
       calf_gender_id:
@@ -304,7 +290,7 @@ function BirthForm({
         </label>
 
         <select
-          id="birth-pregnancy"
+          id="birth-pregnancy" {...fieldErrorAttributes(fieldErrors, 'pregnancy_id', 'birth-pregnancy')}
           value={pregnancyId}
           onChange={(event) =>
             setPregnancyId(event.target.value)
@@ -327,6 +313,7 @@ function BirthForm({
             </option>
           ))}
         </select>
+        <FieldError errors={fieldErrors} field="pregnancy_id" controlId="birth-pregnancy" />
       </div>
 
       {selectedPregnancy && (
@@ -355,7 +342,7 @@ function BirthForm({
         </label>
 
         <input
-          id="birth-date"
+          id="birth-date" {...fieldErrorAttributes(fieldErrors, 'birth_date', 'birth-date')}
           type="date"
           value={birthDate}
           min={minimumBirthDate || undefined}
@@ -370,6 +357,7 @@ function BirthForm({
           }
           required
         />
+        <FieldError errors={fieldErrors} field="birth_date" controlId="birth-date" />
       </div>
 
       <div className="birth-form__field">
@@ -378,7 +366,7 @@ function BirthForm({
         </label>
 
         <input
-          id="birth-weight"
+          id="birth-weight" {...fieldErrorAttributes(fieldErrors, 'birth_weight', 'birth-weight')}
           type="number"
           min="0.01"
           step="0.01"
@@ -389,6 +377,7 @@ function BirthForm({
           disabled={disabled || submitting}
           required
         />
+        <FieldError errors={fieldErrors} field="birth_weight" controlId="birth-weight" />
       </div>
 
       <fieldset className="birth-form__fieldset">
@@ -424,12 +413,17 @@ function BirthForm({
               setCalfGenderId('')
             }}
             disabled={
-              disabled || submitting
+              disabled || submitting || !alive
             }
           />
           Utilizar una cría existente
         </label>
       </fieldset>
+
+      {!alive && <p role="status">
+        Un parto no vivo no puede asociar una cría existente. Indica el sexo;
+        no se creará un animal automáticamente.
+      </p>}
 
       {calfMode === 'new' ? (
         <div className="birth-form__field">
@@ -438,7 +432,7 @@ function BirthForm({
           </label>
 
           <select
-            id="birth-calf-gender"
+            id="birth-calf-gender" {...fieldErrorAttributes(fieldErrors, 'calf_gender_id', 'birth-calf-gender')}
             value={calfGenderId}
             onChange={(event) =>
               setCalfGenderId(
@@ -463,6 +457,7 @@ function BirthForm({
               </option>
             ))}
           </select>
+          <FieldError errors={fieldErrors} field="calf_gender_id" controlId="birth-calf-gender" />
         </div>
       ) : (
         <div className="birth-form__field">
@@ -471,7 +466,7 @@ function BirthForm({
           </label>
 
           <select
-            id="birth-calf"
+            id="birth-calf" {...fieldErrorAttributes(fieldErrors, 'calf_id', 'birth-calf')}
             value={calfId}
             onChange={(event) =>
               setCalfId(event.target.value)
@@ -494,6 +489,7 @@ function BirthForm({
               </option>
             ))}
           </select>
+          <FieldError errors={fieldErrors} field="calf_id" controlId="birth-calf" />
         </div>
       )}
 
@@ -501,9 +497,16 @@ function BirthForm({
         <input
           type="checkbox"
           checked={alive}
-          onChange={(event) =>
-            setAlive(event.target.checked)
-          }
+          onChange={(event) => {
+            const nextAlive = event.target.checked
+            setAlive(nextAlive)
+            if (!nextAlive) {
+              setCalfMode('new')
+              setCalfId('')
+              onClearErrors()
+              setError(null)
+            }
+          }}
           disabled={
             disabled || submitting
           }
@@ -533,7 +536,7 @@ function BirthForm({
         </label>
 
         <textarea
-          id="birth-notes"
+          id="birth-notes" {...fieldErrorAttributes(fieldErrors, 'notes', 'birth-notes')}
           value={notes}
           onChange={(event) =>
             setNotes(event.target.value)
@@ -543,6 +546,7 @@ function BirthForm({
           }
           rows={4}
         />
+        <FieldError errors={fieldErrors} field="notes" controlId="birth-notes" />
       </div>
 
       <button

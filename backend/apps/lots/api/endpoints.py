@@ -115,6 +115,7 @@ def delete_lot(
 
     LotService.delete(
         lot,
+        request.context,
     )
 
     return {

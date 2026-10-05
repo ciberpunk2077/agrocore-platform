@@ -12,4 +12,8 @@ export const mainNavigation: NavigationItem[] = [
     label: 'Animales',
     path: '/animals',
   },
+  {
+    label: 'Fincas',
+    path: '/farms',
+  },
 ]

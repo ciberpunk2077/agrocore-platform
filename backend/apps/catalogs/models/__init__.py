@@ -6,6 +6,7 @@ from .breed import Breed
 from .weighing_method import WeighingMethod
 from .movement_type import MovementType
 from .breeding_type import BreedingType
+from .production_type import ProductionType
 
 __all__ = [
     "FarmType",
@@ -16,4 +17,5 @@ __all__ = [
     "WeighingMethod",
     "MovementType",
     "BreedingType",
+    "ProductionType",
 ]

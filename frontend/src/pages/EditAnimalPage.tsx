@@ -9,6 +9,11 @@ import { getSession } from '../auth/session'
 function EditAnimalPage() {
   const { animalId } = useParams<{ animalId: string }>()
 
+  // Reset loading, errors and form state before rendering another animal.
+  return <EditAnimal key={animalId} animalId={animalId} />
+}
+
+function EditAnimal({ animalId }: { animalId: string | undefined }) {
   const [animal, setAnimal] = useState<Animal | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

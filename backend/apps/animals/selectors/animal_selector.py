@@ -4,6 +4,15 @@ from apps.animals.models import Animal
 class AnimalSelector:
 
     @staticmethod
+    def parent_candidates(context):
+        return (
+            Animal._base_manager
+            .filter(organization=context.organization, deleted_at__isnull=True)
+            .select_related("gender")
+            .order_by("internal_id", "id")
+        )
+
+    @staticmethod
     def list(context):
 
         return (
@@ -35,6 +44,8 @@ class AnimalSelector:
                 "status",
                 "farm",
                 "lot",
+                "mother",
+                "father",
             )
             .filter(
                 id=animal_id,

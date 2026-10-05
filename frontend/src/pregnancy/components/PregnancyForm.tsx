@@ -1,3 +1,5 @@
+import FieldError from '../../components/FieldError'
+import { fieldErrorAttributes } from '../../lib/api-errors'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 
 import type { Animal } from '../../animals/types'
@@ -10,10 +12,12 @@ interface PregnancyFormProps {
   events: BreedingEvent[]
   eventLabels: Map<string, string>
   disabled: boolean
+  fieldErrors: Record<string, string[]>
+  onClearErrors: () => void
   onCreate: (payload: PregnancyCreatePayload) => Promise<boolean>
 }
 
-function PregnancyForm({ animal, events, eventLabels, disabled, onCreate }: PregnancyFormProps) {
+function PregnancyForm({ animal, events, eventLabels, disabled, onCreate, fieldErrors, onClearErrors }: PregnancyFormProps) {
   const [breedingId, setBreedingId] = useState('')
   const [diagnosisDate, setDiagnosisDate] = useState('')
   const [expectedBirth, setExpectedBirth] = useState('')
@@ -59,6 +63,7 @@ function PregnancyForm({ animal, events, eventLabels, disabled, onCreate }: Preg
     event.preventDefault()
     if (!active.current || submitting.current || disabled) return
     setError(null)
+    onClearErrors()
     if (!selected || !diagnosisDate || !expectedBirth) {
       setError('Selecciona un evento disponible y completa las fechas de diagnóstico y parto estimado.')
       return
@@ -105,27 +110,31 @@ function PregnancyForm({ animal, events, eventLabels, disabled, onCreate }: Preg
       <fieldset disabled={disabled || events.length === 0}>
         <div className="pregnancy-form__field pregnancy-form__wide">
           <label htmlFor="pregnancy-breeding">Evento reproductivo</label>
-          <select id="pregnancy-breeding" value={selected ? breedingId : ''} onChange={(event) => selectEvent(event.target.value)} required>
+          <select id="pregnancy-breeding" {...fieldErrorAttributes(fieldErrors, 'breeding_id', 'pregnancy-breeding')} value={selected ? breedingId : ''} onChange={(event) => selectEvent(event.target.value)} required>
             <option value="">Selecciona un evento</option>
             {events.map((event) => <option key={event.id} value={event.id}>{eventLabels.get(event.id) ?? 'Evento reproductivo'}</option>)}
           </select>
+          <FieldError errors={fieldErrors} field="breeding_id" controlId="pregnancy-breeding" />
           {breedingId && !selected && <p role="alert">El evento seleccionado ya no está disponible. Selecciona otro evento.</p>}
         </div>
         <div className="pregnancy-form__field">
           <label htmlFor="pregnancy-diagnosis">Fecha de diagnóstico</label>
           <input id="pregnancy-diagnosis" type="date" value={diagnosisDate} min={selected?.date} max={today}
-            aria-invalid={invalidDiagnosis || undefined} aria-describedby={invalidDiagnosis ? 'pregnancy-diagnosis-error' : undefined}
+            aria-invalid={invalidDiagnosis || Boolean(fieldErrors.diagnosis_date?.length) || undefined} aria-describedby={[invalidDiagnosis ? 'pregnancy-diagnosis-error' : '', fieldErrors.diagnosis_date?.length ? 'pregnancy-diagnosis-api-error' : ''].filter(Boolean).join(' ') || undefined}
             onChange={(event) => setDiagnosisDate(event.target.value)} required />
+          <FieldError errors={fieldErrors} field="diagnosis_date" controlId="pregnancy-diagnosis" />
           {invalidDiagnosis && <p id="pregnancy-diagnosis-error" role="alert">La fecha de diagnóstico no puede ser anterior al evento seleccionado.</p>}
         </div>
         <div className="pregnancy-form__field">
           <label htmlFor="pregnancy-expected-birth">Fecha estimada de parto</label>
-          <input id="pregnancy-expected-birth" type="date" value={expectedBirth}
+          <input id="pregnancy-expected-birth" {...fieldErrorAttributes(fieldErrors, 'expected_birth', 'pregnancy-expected-birth')} type="date" value={expectedBirth}
             onChange={(event) => setExpectedBirth(event.target.value)} required />
+          <FieldError errors={fieldErrors} field="expected_birth" controlId="pregnancy-expected-birth" />
         </div>
         <div className="pregnancy-form__field pregnancy-form__wide">
           <label htmlFor="pregnancy-notes">Notas (opcional)</label>
-          <textarea id="pregnancy-notes" rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} />
+          <textarea id="pregnancy-notes" {...fieldErrorAttributes(fieldErrors, 'notes', 'pregnancy-notes')} rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} />
+          <FieldError errors={fieldErrors} field="notes" controlId="pregnancy-notes" />
         </div>
         <button type="submit">Guardar gestación</button>
       </fieldset>

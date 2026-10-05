@@ -42,3 +42,8 @@ class BreedingTypeSchema(BaseCatalogSchema):
 
 class WeighingMethodSchema(BaseCatalogSchema):
     pass
+
+
+class ProductionTypeSchema(BaseCatalogSchema):
+    default_unit: str
+    description: str

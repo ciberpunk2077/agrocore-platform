@@ -5,12 +5,22 @@ from apps.catalogs.models import (
     FarmType,
     Gender,
     MovementType,
+    ProductionType,
     Species,
     WeighingMethod,
 )
 
 
 class CatalogService:
+
+    @staticmethod
+    def get_production_types():
+
+        return ProductionType.objects.filter(
+            is_active=True,
+        ).order_by(
+            "name",
+        )
 
     @staticmethod
     def get_farm_types():

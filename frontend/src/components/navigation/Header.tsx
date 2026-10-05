@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 
-import { clearSession, getSession } from '../../auth/session'
+import { clearSession } from '../../auth/session'
+import { useCurrentContext } from '../../auth/current-context'
 import './Header.css'
 
 function Header() {
   const navigate = useNavigate()
-  const session = getSession()
-  const user = session?.user
+  const { currentUser: user, currentOrganization, currentRole } = useCurrentContext()
 
   const fullName = user
     ? `${user.first_name} ${user.last_name}`.trim()
@@ -28,6 +28,8 @@ function Header() {
               <span className="app-header__user-name">{fullName}</span>
             )}
             <span className="app-header__user-email">{user.email}</span>
+            <span>{currentOrganization?.name ?? 'Sin organización actual'}</span>
+            <span>{currentRole ?? 'Sin membresía actual'}</span>
           </div>
         )}
 

@@ -1,9 +1,11 @@
 from datetime import date, timedelta
+import json
+import sqlite3
 from unittest.mock import patch
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
-from django.db import OperationalError
+from django.db import IntegrityError, OperationalError, transaction
 from django.test import TestCase
 
 from apps.accounts.models import Membership, User
@@ -53,15 +55,9 @@ class PregnancyTestBase(TestCase):
             name="Pregnancy test breed",
         )
 
-        cls.female = Gender.objects.create(
-            code="F",
-            name="Pregnancy test female",
-        )
+        cls.female = Gender.objects.get(code="F")
 
-        cls.male = Gender.objects.create(
-            code="M",
-            name="Pregnancy test male",
-        )
+        cls.male = Gender.objects.get(code="M")
 
         cls.status = AnimalStatus.objects.create(
             code="PREG_ACTIVE",
@@ -144,6 +140,115 @@ class PregnancyTestBase(TestCase):
         fields.update(overrides)
 
         return PregnancyCreateSchema(**fields)
+
+
+class PregnancyActiveIntegrityTests(PregnancyTestBase):
+    def setUp(self):
+        self.context = RequestContext(organization=self.organization)
+        self.next_breeding = self.make_breeding(
+            self.organization, self.animal, date(2025, 1, 2),
+        )
+
+    def create_first(self):
+        return PregnancyService.create(self.context, self.make_payload())
+
+    def create_next(self):
+        return PregnancyService.create(
+            self.context, self.make_payload(breeding_id=self.next_breeding.pk),
+        )
+
+    def test_second_active_for_same_animal_is_rejected(self):
+        self.create_first()
+        with self.assertRaisesMessage(PregnancyValidationError, "El animal ya tiene una gestación activa."):
+            self.create_next()
+        self.assertEqual(Pregnancy.objects.filter(animal=self.animal, status="ACTIVE").count(), 1)
+
+    def test_finished_allows_new_active(self):
+        first = self.create_first()
+        first.status = PregnancyStatus.FINISHED
+        first.save(update_fields=["status"])
+        self.assertEqual(self.create_next().status, PregnancyStatus.ACTIVE)
+
+    def test_aborted_allows_new_active(self):
+        first = self.create_first()
+        PregnancyService.abort(self.context, first.pk)
+        self.assertEqual(self.create_next().status, PregnancyStatus.ACTIVE)
+
+    def test_soft_deleted_active_allows_new_active(self):
+        self.create_first().delete()
+        self.assertEqual(self.create_next().status, PregnancyStatus.ACTIVE)
+
+    def test_database_rejects_second_active_even_with_foreign_organization(self):
+        self.create_first()
+        with self.assertRaises(IntegrityError) as caught:
+            with transaction.atomic():
+                Pregnancy.objects.create(
+                    organization=self.other_organization, animal=self.animal,
+                    breeding=self.next_breeding, diagnosis_date=date(2025, 2, 1),
+                    expected_birth=date(2025, 10, 1),
+                )
+        self.assertIn("pregnancies.animal_id", str(caught.exception))
+        self.assertEqual(Pregnancy._base_manager.count(), 1)
+
+    def test_create_real_database_collision_is_translated(self):
+        self.create_first()
+        # Bypass checks, not the INSERT or the database error.
+        with patch.object(PregnancyService, "_validate_relations"), patch.object(Pregnancy, "full_clean"):
+            with self.assertRaises(PregnancyValidationError) as caught:
+                self.create_next()
+        self.assertIsInstance(caught.exception.__cause__, IntegrityError)
+        self.assertEqual(str(caught.exception.__cause__.__cause__), "UNIQUE constraint failed: pregnancies.animal_id")
+        self.assertEqual(Pregnancy._base_manager.count(), 1)
+
+    def test_unrelated_integrity_error_propagates(self):
+        self.create_first()
+        # A real NOT NULL violation remains unrelated to business uniqueness.
+        real_save = Pregnancy.save
+        def invalid_save(instance, *args, **kwargs):
+            instance.notes = None
+            instance.confirmed = None
+            return real_save(instance, *args, **kwargs)
+        with patch.object(PregnancyService, "_validate_relations"), patch.object(Pregnancy, "full_clean"), patch.object(Pregnancy, "save", invalid_save):
+            with self.assertRaises(IntegrityError) as caught:
+                self.create_next()
+        self.assertIn("NOT NULL constraint failed: pregnancies.confirmed", str(caught.exception))
+        self.assertEqual(Pregnancy._base_manager.count(), 1)
+
+    def test_full_clean_active_constraint_is_translated_specifically(self):
+        self.create_first()
+        with patch.object(PregnancyService, "_validate_relations"):
+            with self.assertRaisesMessage(PregnancyValidationError, PregnancyService._active_message) as caught:
+                self.create_next()
+        self.assertIsInstance(caught.exception.__cause__, ValidationError)
+        self.assertEqual(Pregnancy._base_manager.count(), 1)
+
+    def test_http_second_active_returns_400(self):
+        self.create_first()
+        user = User.objects.create_user(email="h1-active@example.com")
+        Membership.objects.create(
+            user=user, organization=self.organization,
+            role=Membership.Role.OPERATOR, is_default=True,
+        )
+        payload = json.loads(self.make_payload(breeding_id=self.next_breeding.pk).model_dump_json())
+        response = self.client.post(
+            "/api/pregnancies/", data=json.dumps(payload), content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {create_access_token(user)}",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"detail": "El animal ya tiene una gestación activa."})
+        self.assertEqual(Pregnancy.objects.filter(animal=self.animal, status="ACTIVE").count(), 1)
+
+    def test_restore_conflict_is_rejected_by_database(self):
+        first = self.create_first()
+        first.delete()
+        second = self.create_next()
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                first.restore()
+        first.refresh_from_db()
+        self.assertFalse(first.is_active)
+        self.assertIsNotNone(first.deleted_at)
+        self.assertEqual(Pregnancy.objects.get(animal=self.animal).pk, second.pk)
 
 
 class PregnancyServiceValidationTests(PregnancyTestBase):
@@ -280,10 +385,10 @@ class PregnancyHistoryTests(PregnancyTestBase):
         return response.json()
 
     def test_history_filters_animal_active_records_and_orders_descending(self):
-        oldest = self.saved_pregnancy(diagnosis_date=date(2025, 1, 1))
-        newest = self.saved_pregnancy(diagnosis_date=date(2025, 3, 1))
-        middle = self.saved_pregnancy(diagnosis_date=date(2025, 2, 1))
-        deleted = self.saved_pregnancy()
+        oldest = self.saved_pregnancy(diagnosis_date=date(2025, 1, 1), status=PregnancyStatus.FINISHED)
+        newest = self.saved_pregnancy(diagnosis_date=date(2025, 3, 1), status=PregnancyStatus.FINISHED)
+        middle = self.saved_pregnancy(diagnosis_date=date(2025, 2, 1), status=PregnancyStatus.ABORTED)
+        deleted = self.saved_pregnancy(status=PregnancyStatus.FINISHED)
         deleted.delete()
         self.saved_pregnancy(animal=self.second_animal)
         self.saved_pregnancy(organization=self.other_organization, animal=self.other_animal)
@@ -299,7 +404,7 @@ class PregnancyHistoryTests(PregnancyTestBase):
     def test_history_explicitly_filters_organization(self):
         own = self.saved_pregnancy()
         # Even inconsistent legacy rows must not cross the tenant boundary.
-        foreign = self.saved_pregnancy()
+        foreign = self.saved_pregnancy(status=PregnancyStatus.FINISHED)
         Pregnancy.objects.filter(pk=foreign.pk).update(organization=self.other_organization)
         self.assertEqual([item["id"] for item in self.history(self.animal.id)], [str(own.id)])
 
@@ -588,3 +693,78 @@ class PregnancyServiceCharacterizationTests(PregnancyTestBase):
             pregnancy.status,
             PregnancyStatus.ABORTED,
         )
+
+
+class PregnancyBreedingCollisionTests(PregnancyTestBase):
+    def setUp(self):
+        self.context = RequestContext(organization=self.organization)
+        user = User.objects.create_user(email="h5f-pregnancy@example.com")
+        Membership.objects.create(user=user, organization=self.organization,
+                                  role=Membership.Role.OPERATOR, is_default=True)
+        self.authorization = f"Bearer {create_access_token(user)}"
+        self.first = PregnancyService.create(self.context, self.make_payload())
+        # Keep the same legitimate animal/breeding relation; isolate OneToOne from H1.
+        PregnancyService.abort(self.context, self.first.pk)
+        self.first.refresh_from_db()
+        self.before = list(Pregnancy._base_manager.order_by("pk").values())
+
+    def request(self):
+        return self.client.post("/api/pregnancies/", data=json.loads(self.make_payload().model_dump_json()),
+            content_type="application/json", HTTP_AUTHORIZATION=self.authorization)
+
+    def assert_preserved(self):
+        self.first.refresh_from_db()
+        self.assertEqual(list(Pregnancy._base_manager.order_by("pk").values()), self.before)
+        self.assertEqual(Pregnancy._base_manager.count(), 1)
+        self.assertFalse(transaction.get_connection().needs_rollback)
+
+    def test_http_sequential_breeding_reuse_remains_400(self):
+        self.assertEqual(self.request().status_code, 400)
+        self.assert_preserved()
+
+    def test_http_soft_deleted_pregnancy_reserves_breeding(self):
+        self.first.delete()
+        self.first.refresh_from_db()
+        self.assertFalse(self.first.is_active)
+        self.assertIsNotNone(self.first.deleted_at)
+        self.before = list(Pregnancy._base_manager.order_by("pk").values())
+        self.assertEqual(self.request().status_code, 400)
+        self.assert_preserved()
+
+    def test_real_breeding_collision_translates_preserves_cause_and_connection(self):
+        with patch.object(PregnancyService, "_validate_relations"), patch.object(Pregnancy, "full_clean"):
+            with self.assertRaises(PregnancyValidationError) as caught:
+                PregnancyService.create(self.context, self.make_payload())
+        self.assertIsInstance(caught.exception.__cause__, IntegrityError)
+        self.assertIsInstance(caught.exception.__cause__.__cause__, sqlite3.IntegrityError)
+        self.assertEqual(str(caught.exception), PregnancyService._breeding_message)
+        self.assertEqual(str(caught.exception.__cause__.__cause__), "UNIQUE constraint failed: pregnancies.breeding_id")
+        self.assert_preserved()
+
+    def test_http_real_breeding_collision_returns_400(self):
+        with patch.object(PregnancyService, "_validate_relations"), patch.object(Pregnancy, "full_clean"):
+            self.assertEqual(self.request().status_code, 400)
+        self.assert_preserved()
+
+    def test_nonexact_or_unverified_diagnostics_propagate_original(self):
+        import sqlite3
+        from types import SimpleNamespace
+        causes = [
+            sqlite3.IntegrityError("UNIQUE constraint failed: pregnancies.breeding_id_extra"),
+            sqlite3.IntegrityError("UNIQUE constraint failed: pregnancies.breeding_id "),
+            sqlite3.IntegrityError("UNIQUE constraint failed: pregnancies.breeding_id, pregnancies.organization_id"),
+            Exception("UNIQUE constraint failed: pregnancies.breeding_id"),
+        ]
+        for name in ("other_constraint", "pregnancies_breeding_id_key"):
+            cause = Exception("PostgreSQL unique violation")
+            cause.diag = SimpleNamespace(constraint_name=name)
+            causes.append(cause)
+        for cause in causes:
+            with self.subTest(cause=str(cause), diag=getattr(cause, "diag", None)):
+                error = IntegrityError("unique violation")
+                error.__cause__ = cause
+                with patch.object(PregnancyService, "_validate_relations"), patch.object(Pregnancy, "full_clean"), patch.object(Pregnancy, "save", side_effect=error):
+                    with self.assertRaises(IntegrityError) as caught:
+                        self.request()
+                self.assertIs(caught.exception, error)
+                self.assert_preserved()

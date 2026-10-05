@@ -1,3 +1,4 @@
+import WriteOnly from '../../auth/WriteOnly'
 import { useEffect, useState } from 'react'
 
 import { getGenders } from '../../animals/animal-options.service'
@@ -77,7 +78,7 @@ function AnimalBreeding({ animal }: { animal: Animal }) {
   const maleGenderId = options?.genders.find((gender) => gender.code === 'M')?.id
   const femaleGenderId = options?.genders.find((gender) => gender.code === 'F')?.id
   const males = options?.animals.filter((candidate) => candidate.is_active && candidate.id !== animal.id
-    && candidate.species_id === animal.species_id && candidate.gender_id === maleGenderId) ?? []
+    && candidate.gender_id === maleGenderId) ?? []
 
   return (
     <section className="breeding" aria-label="Reproducción">
@@ -86,12 +87,12 @@ function AnimalBreeding({ animal }: { animal: Animal }) {
         <p role="alert">{optionsError}</p>
         <button type="button" onClick={() => setOptionsAttempt((value) => value + 1)}>Reintentar carga de datos</button>
       </div> : !options ? <p role="status">Cargando datos de reproducción...</p> : (
-        animal.is_active && animal.gender_id === femaleGenderId ? <BreedingForm
+        <WriteOnly>{animal.is_active && animal.gender_id === femaleGenderId ? <BreedingForm
           animal={animal} types={options.types} males={males}
           disabled={saved && (loadingHistory || Boolean(historyError))}
           onSaved={() => { setSaved(true); refreshHistory() }}
         /> : <p>El registro de eventos reproductivos está disponible para hembras activas.</p>
-      )}
+      }</WriteOnly>)}
       {saved && <p className="breeding-form__success" role="status">
         El evento reproductivo ya fue guardado correctamente.
         {loadingHistory ? ' Actualizando historial...' : historyError ? ' Reintenta únicamente la consulta del historial antes de registrar otro evento.' : ''}

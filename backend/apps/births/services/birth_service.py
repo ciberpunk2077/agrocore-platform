@@ -1,7 +1,9 @@
+import sqlite3
+
 from django.core.exceptions import  ObjectDoesNotExist, ValidationError
 
 from django.utils import timezone
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from apps.common.exceptions import (
     BirthValidationError,
@@ -26,6 +28,11 @@ class BirthService:
     def create(context, data):
 
         try:
+
+            if data.alive is False and data.calf_id is not None:
+                raise BirthValidationError(
+                    "No se puede asociar una cría existente a un parto registrado como no vivo."
+                )
 
             if data.calf_id is None and data.calf_gender_id is None:
                 raise BusinessException(
@@ -97,10 +104,10 @@ class BirthService:
                 notes=data.notes,
             )
 
-            birth.full_clean()
-            birth.save()
+            BirthService._full_clean_birth(birth)
+            BirthService._insert_birth(birth)
 
-            if birth.calf is None:
+            if birth.alive and birth.calf is None:
 
                 try:
                     calf = CalfService.create_from_birth(
@@ -134,6 +141,42 @@ class BirthService:
             )
 
 
+
+    @staticmethod
+    def _is_pregnancy_collision(error):
+        # The migration uses unnamed UNIQUE; do not assume a PostgreSQL name.
+        cause = error.__cause__
+        return isinstance(cause, sqlite3.IntegrityError) and str(cause) == (
+            "UNIQUE constraint failed: births.pregnancy_id"
+        )
+
+    @staticmethod
+    def _insert_birth(birth):
+        try:
+            with transaction.atomic():
+                birth.save()
+        except IntegrityError as exc:
+            if BirthService._is_pregnancy_collision(exc):
+                raise BirthValidationError("Esta gestación ya tiene un parto registrado.") from exc
+            raise
+
+    @staticmethod
+    def _full_clean_birth(birth):
+        try:
+            birth.full_clean()
+        except ValidationError as exc:
+            recognized = {
+                "birth_weight": {"max_digits", "max_decimal_places", "max_whole_digits"},
+                "pregnancy": {"unique"},
+            }
+            if not hasattr(exc, "error_dict") or not exc.error_dict:
+                raise
+            if not all(
+                errors and all(error.code in recognized.get(field, set()) for error in errors)
+                for field, errors in exc.error_dict.items()
+            ):
+                raise
+            raise BirthValidationError(" ".join(exc.messages)) from exc
 
     @staticmethod
     def _validate_business_rules(
@@ -186,10 +229,12 @@ class BirthService:
     @staticmethod
     def _finish_pregnancy(pregnancy):
 
+        updated_at = timezone.now()
+        affected_rows = Pregnancy.objects.filter(
+            id=pregnancy.pk, organization_id=pregnancy.organization_id,
+            is_active=True, status=PregnancyStatus.ACTIVE,
+        ).update(status=PregnancyStatus.FINISHED, updated_at=updated_at)
+        if affected_rows != 1:
+            raise BirthValidationError("Solo se puede finalizar una gestación activa.")
         pregnancy.status = PregnancyStatus.FINISHED
-
-        pregnancy.save(
-            update_fields=[
-                "status",
-            ]
-        )
+        pregnancy.updated_at = updated_at

@@ -1,5 +1,7 @@
+import { normalizeApiError } from '../../lib/api-errors'
 import { useEffect, useRef, useState } from 'react'
 
+import WriteOnly from '../../auth/WriteOnly'
 import { getAnimals } from '../../animals/animals.service'
 import { getGenders } from '../../animals/animal-options.service'
 import type { Animal, Gender } from '../../animals/types'
@@ -34,6 +36,7 @@ function AnimalBirths({ animal }: { animal: Animal }) {
   const [attempt, setAttempt] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const [success, setSuccess] = useState<string | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -207,7 +210,8 @@ function AnimalBirths({ animal }: { animal: Animal }) {
     if (
       !active.current ||
       locked.current ||
-      !data
+      !data ||
+      creationUnavailable
     ) {
       return false
     }
@@ -215,6 +219,7 @@ function AnimalBirths({ animal }: { animal: Animal }) {
     locked.current = true
     setBusy(true)
     setError(null)
+    setFieldErrors({})
     setSuccess(null)
 
     const session = getSession()
@@ -266,12 +271,10 @@ function AnimalBirths({ animal }: { animal: Animal }) {
       return true
     } catch (cause) {
       if (active.current) {
-        setError(
-          birthErrorMessage(
-            cause,
-            'No fue posible registrar el parto. Revisa los datos e intenta de nuevo.',
-          ),
-        )
+        const normalized = normalizeApiError(cause,
+          'No fue posible registrar el parto. Revisa los datos e intenta de nuevo.')
+        setError(normalized.message)
+        setFieldErrors(normalized.fieldErrors)
 
         locked.current = false
         setBusy(false)
@@ -291,6 +294,15 @@ function AnimalBirths({ animal }: { animal: Animal }) {
             birth.pregnancy_id === pregnancy.id,
         ),
     ) ?? []
+
+  const femaleGenderId = data?.genders.find((gender) => gender.code === 'F')?.id
+  const creationUnavailable = !animal.is_active
+    ? 'No es posible registrar un parto para un animal inactivo.'
+    : !femaleGenderId || animal.gender_id !== femaleGenderId
+    ? 'El registro de partos está disponible para hembras activas.'
+    : availablePregnancies.length === 0
+    ? 'No hay una gestación activa disponible para registrar un parto.'
+    : null
 
   return (
     <section
@@ -364,19 +376,23 @@ function AnimalBirths({ animal }: { animal: Animal }) {
             </div>
           )}
 
-          <BirthForm
-            animal={animal}
-            pregnancies={availablePregnancies}
-            breedings={data.breedings}
-            animals={data.animals}
-            genders={data.genders}
-            disabled={
-              busy ||
-              Boolean(syncError) ||
-              !animal.is_active
-            }
-            onCreate={handleCreate}
-          />
+          <WriteOnly>
+            {creationUnavailable ? <p role="status">{creationUnavailable}</p> : <BirthForm
+              animal={animal}
+              pregnancies={availablePregnancies}
+              breedings={data.breedings}
+              animals={data.animals}
+              genders={data.genders}
+              disabled={
+                busy ||
+                Boolean(syncError) ||
+                !animal.is_active
+              }
+              onCreate={handleCreate}
+              fieldErrors={fieldErrors}
+              onClearErrors={() => { setError(null); setFieldErrors({}) }}
+            />}
+          </WriteOnly>
 
           <BirthHistory
             history={data.history}

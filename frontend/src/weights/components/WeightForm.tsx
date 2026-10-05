@@ -1,3 +1,5 @@
+import FieldError from '../../components/FieldError'
+import { fieldErrorAttributes, normalizeApiError } from '../../lib/api-errors'
 import { type FormEvent, useEffect, useState } from 'react'
 
 import { getSession } from '../../auth/session'
@@ -7,11 +9,10 @@ import './WeightForm.css'
 
 interface WeightFormProps {
   animalId: string
-  onMethodsLoaded: (methods: WeighingMethod[]) => void
   onSaved: () => void
 }
 
-function WeightForm({ animalId, onMethodsLoaded, onSaved }: WeightFormProps) {
+function WeightForm({ animalId, onSaved }: WeightFormProps) {
   const [methods, setMethods] = useState<WeighingMethod[]>([])
   const [date, setDate] = useState('')
   const [weight, setWeight] = useState('')
@@ -20,6 +21,7 @@ function WeightForm({ animalId, onMethodsLoaded, onSaved }: WeightFormProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const [success, setSuccess] = useState(false)
 
   useEffect(() => {
@@ -39,7 +41,6 @@ function WeightForm({ animalId, onMethodsLoaded, onSaved }: WeightFormProps) {
 
         if (isActive) {
           setMethods(data)
-          onMethodsLoaded(data)
         }
       } catch {
         if (isActive) {
@@ -57,10 +58,11 @@ function WeightForm({ animalId, onMethodsLoaded, onSaved }: WeightFormProps) {
     return () => {
       isActive = false
     }
-  }, [onMethodsLoaded])
+  }, [])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setFieldErrors({})
 
     if (isLoading || isSubmitting) return
 
@@ -104,8 +106,10 @@ function WeightForm({ animalId, onMethodsLoaded, onSaved }: WeightFormProps) {
       setNotes('')
       setSuccess(true)
       onSaved()
-    } catch {
-      setError('No fue posible registrar el peso. Intenta de nuevo.')
+    } catch (cause) {
+      const normalized = normalizeApiError(cause, 'No fue posible registrar el peso. Intenta de nuevo.')
+      setError(normalized.message)
+      setFieldErrors(normalized.fieldErrors)
     } finally {
       setIsSubmitting(false)
     }
@@ -121,28 +125,32 @@ function WeightForm({ animalId, onMethodsLoaded, onSaved }: WeightFormProps) {
           <fieldset disabled={isSubmitting || methods.length === 0}>
             <div className="weight-form__field">
               <label htmlFor="weight-date">Fecha</label>
-              <input id="weight-date" type="date" value={date}
+              <input id="weight-date" {...fieldErrorAttributes(fieldErrors, 'date', 'weight-date')} type="date" value={date}
                 onChange={(event) => setDate(event.target.value)} required />
+              <FieldError errors={fieldErrors} field="date" controlId="weight-date" />
             </div>
             <div className="weight-form__field">
               <label htmlFor="weight-value">Peso (kg)</label>
-              <input id="weight-value" type="number" min="0" step="any" value={weight}
+              <input id="weight-value" {...fieldErrorAttributes(fieldErrors, 'weight', 'weight-value')} type="number" min="0" step="any" value={weight}
                 onChange={(event) => setWeight(event.target.value)} required />
+              <FieldError errors={fieldErrors} field="weight" controlId="weight-value" />
             </div>
             <div className="weight-form__field">
               <label htmlFor="weight-method">Método de pesaje</label>
-              <select id="weight-method" value={methodId}
+              <select id="weight-method" {...fieldErrorAttributes(fieldErrors, 'weighing_method_id', 'weight-method')} value={methodId}
                 onChange={(event) => setMethodId(event.target.value)} required>
                 <option value="">Selecciona un método</option>
                 {methods.map((method) => (
                   <option key={method.id} value={method.id}>{method.name}</option>
                 ))}
               </select>
+              <FieldError errors={fieldErrors} field="weighing_method_id" controlId="weight-method" />
             </div>
             <div className="weight-form__field weight-form__notes">
               <label htmlFor="weight-notes">Notas (opcional)</label>
-              <textarea id="weight-notes" value={notes} rows={3}
+              <textarea id="weight-notes" {...fieldErrorAttributes(fieldErrors, 'notes', 'weight-notes')} value={notes} rows={3}
                 onChange={(event) => setNotes(event.target.value)} />
+              <FieldError errors={fieldErrors} field="notes" controlId="weight-notes" />
             </div>
             <button type="submit">
               {isSubmitting ? 'Guardando...' : 'Guardar peso'}

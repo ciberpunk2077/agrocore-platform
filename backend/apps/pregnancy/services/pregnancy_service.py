@@ -1,3 +1,6 @@
+import sqlite3
+
+from django.db import IntegrityError, transaction
 from django.core.exceptions import (
     ObjectDoesNotExist,
     ValidationError,
@@ -11,6 +14,47 @@ from apps.pregnancy.models import Pregnancy, PregnancyStatus
 
 
 class PregnancyService:
+
+    _active_message = "El animal ya tiene una gestación activa."
+    _breeding_message = "Este evento reproductivo ya tiene una gestación registrada."
+
+    @staticmethod
+    def _validate_no_active_pregnancy(context, animal):
+        if Pregnancy.objects.filter(
+            organization=context.organization, animal=animal,
+            status=PregnancyStatus.ACTIVE, is_active=True,
+        ).exists():
+            raise PregnancyValidationError(PregnancyService._active_message)
+
+    @staticmethod
+    def _is_active_pregnancy_error(error):
+        cause = error.__cause__
+        constraint = getattr(getattr(cause, "diag", None), "constraint_name", None)
+        if constraint is not None:
+            return constraint == "unique_active_pregnancy_per_animal"
+        return isinstance(cause, sqlite3.IntegrityError) and str(cause) == (
+            "UNIQUE constraint failed: pregnancies.animal_id"
+        )
+
+    @staticmethod
+    def _is_breeding_collision(error):
+        # The migration uses unnamed UNIQUE; do not assume a PostgreSQL name.
+        cause = error.__cause__
+        return isinstance(cause, sqlite3.IntegrityError) and str(cause) == (
+            "UNIQUE constraint failed: pregnancies.breeding_id"
+        )
+
+    @staticmethod
+    def _save(pregnancy):
+        try:
+            with transaction.atomic():
+                pregnancy.save()
+        except IntegrityError as exc:
+            if PregnancyService._is_active_pregnancy_error(exc):
+                raise PregnancyValidationError(PregnancyService._active_message) from exc
+            if PregnancyService._is_breeding_collision(exc):
+                raise PregnancyValidationError(PregnancyService._breeding_message) from exc
+            raise
 
     @staticmethod
     def create(context, data):
@@ -44,11 +88,14 @@ class PregnancyService:
 
             try:
                 pregnancy.full_clean()
-            except ValidationError:
+            except ValidationError as exc:
+                errors = exc.error_dict.get("__all__", []) if hasattr(exc, "error_dict") else []
+                if any(error.code == "active_pregnancy" for error in errors):
+                    raise PregnancyValidationError(PregnancyService._active_message) from exc
                 raise PregnancyValidationError(
                     "Los datos de la gestación son inválidos."
-                )
-            pregnancy.save()
+                ) from exc
+            PregnancyService._save(pregnancy)
 
             return pregnancy
 
@@ -58,6 +105,7 @@ class PregnancyService:
             )
 
     @staticmethod
+    @transaction.atomic
     def abort(context, pregnancy_id):
 
         try:
@@ -88,12 +136,14 @@ class PregnancyService:
             raise PregnancyValidationError(
                 "Los datos de la gestación son inválidos."
             )
-        pregnancy.save(
-            update_fields=[
-                "status",
-                "updated_at",
-            ]
-        )
+        updated_at = timezone.now()
+        affected_rows = Pregnancy.objects.filter(
+            id=pregnancy_id, organization=context.organization,
+            is_active=True, status=PregnancyStatus.ACTIVE,
+        ).update(status=PregnancyStatus.ABORTED, updated_at=updated_at)
+        if affected_rows != 1:
+            raise PregnancyValidationError("Solo se puede abortar una gestación activa.")
+        pregnancy.updated_at = updated_at
 
         return pregnancy
 
@@ -147,6 +197,8 @@ class PregnancyService:
             raise PregnancyValidationError(
                 "Este evento reproductivo ya tiene una gestación registrada."
             )
+
+        PregnancyService._validate_no_active_pregnancy(context, animal)
 
 
     @staticmethod

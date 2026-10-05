@@ -9,6 +9,7 @@ from apps.catalogs.api.schemas import (
     FarmTypeSchema,
     GenderSchema,
     MovementTypeSchema,
+    ProductionTypeSchema,
     SpeciesSchema,
     WeighingMethodSchema,
 )
@@ -16,6 +17,15 @@ from apps.catalogs.services import CatalogService
 
 
 router = Router()
+
+
+@router.get(
+    "/production-types",
+    response=list[ProductionTypeSchema],
+)
+def production_types(request):
+
+    return CatalogService.get_production_types()
 
 
 @router.get(
