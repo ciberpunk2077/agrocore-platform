@@ -1,0 +1,45 @@
+﻿.lot-premium { container: lot-inventory / inline-size; display: flex; flex-direction: column; gap: 24px; min-width: 0; color: #163c2c; }
+.lot-premium *, .lot-premium *::before, .lot-premium *::after { box-sizing: border-box; }
+.lot-premium a, .lot-premium a:visited { color: #047857; text-underline-offset: 4px; overflow-wrap: anywhere; }
+.lot-premium .ag-card { background: #fff; color: #163c2c; border: 1px solid #dfe9e4; border-radius: 16px; box-shadow: 0 4px 16px #123f2808; }
+.lot-premium-stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 16px; }
+.lot-premium-stats > .ag-card { display: flex; flex-direction: column; gap: 12px; padding: 24px; border-top: 3px solid #047857; }
+.lot-premium-stats span { color: #52675d; font-size: .875rem; }
+.lot-premium-stats strong { font-size: 2rem; font-variant-numeric: tabular-nums; line-height: 1.3; }
+.lot-premium-stats small { color: #52675d; font-size: .75rem; }
+.lot-premium .lot-premium-notice, .lot-premium-context { color: #52675d; margin: 0; font-size: .8125rem; line-height: 1.6; }
+.lot-premium-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; padding: 24px; }
+.lot-premium-filters > .ag-field { flex: 1 1 240px; }
+.lot-premium .ag-control { width: 100%; background: #fff; color: #163c2c; border-color: #a6beb1; border-radius: 9px; }
+.lot-premium .ag-field__label { color: #3d5a4a; }
+.lot-premium-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.lot-premium-toolbar p { margin: 0; color: #52675d; font-size: .875rem; }
+.lot-premium-toolbar > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.lot-premium-grid { display: grid; grid-template-columns: minmax(0,1fr); gap: 20px; padding: 0; margin: 0; list-style: none; }
+.lot-premium-grid > li { display: flex; min-width: 0; }
+.lot-premium-card { display: flex; flex-direction: column; align-items: start; width: 100%; gap: 20px; padding: 24px; }
+.lot-premium-card > div { min-width: 0; }
+.lot-premium-icon { display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid #cce7d9; border-radius: 13px; background: #ecfdf5; color: #047857; }
+.lot-premium-icon svg { width: 26px; height: 26px; }
+.lot-premium-card h3 { font-size: 1.125rem; margin: 0 0 8px; line-height: 1.5; overflow-wrap: anywhere; }
+.lot-premium .lot-premium-code { margin: 0; color: #52675d; font-size: .8125rem; overflow-wrap: anywhere; }
+.lot-premium-card dl { display: grid; gap: 18px; width: 100%; margin: 0; }
+.lot-premium-card dl > div { min-width: 0; }
+.lot-premium-card dt { font-size: .75rem; color: #52675d; margin-bottom: 5px; }
+.lot-premium-card dd { font-size: .9375rem; margin: 0; line-height: 1.6; overflow-wrap: anywhere; }
+.lot-premium-link { display: inline-flex; align-items: center; justify-content: space-between; gap: 12px; font-size: .875rem; font-weight: 600; }
+.lot-premium-card > .lot-premium-link { align-self: stretch; margin-top: auto; padding-top: 16px; border-top: 1px solid #e5eee9; }
+.lot-premium-table-scroll { overflow-x: auto; max-width: 100%; min-width: 0; border: 1px solid #dfe9e4; border-radius: 16px; background: #fff; }
+.lot-premium-table { width: 100%; min-width: 780px; border-collapse: collapse; text-align: left; }
+.lot-premium-table caption { padding: 18px 20px; color: #52675d; font-size: .875rem; text-align: left; }
+.lot-premium-table th, .lot-premium-table td { padding: 18px 20px; border-bottom: 1px solid #e5eee9; font-size: .875rem; line-height: 1.6; max-width: 360px; overflow-wrap: anywhere; }
+.lot-premium-table thead th { background: #f5faf7; color: #52675d; font-size: .75rem; font-weight: 600; }
+.lot-premium-table tbody th { font-weight: 600; }
+.lot-premium-table tbody tr:hover { background: #f4faf7; }
+.lot-premium-table tbody tr:last-child > * { border-bottom: 0; }
+.lot-premium :focus-visible { outline: 3px solid #047857; outline-offset: 4px; }
+.lot-premium .ag-state { padding: 24px; border-radius: 14px; }
+@container lot-inventory (min-width: 560px) { .lot-premium-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@container lot-inventory (min-width: 1000px) { .lot-premium-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@container lot-inventory (max-width: 399px) { .lot-premium-card, .lot-premium-filters { padding: 18px; } }
+@media (prefers-reduced-motion: reduce) { .lot-premium .ag-button { transition: none; } }

@@ -1,84 +1,48 @@
-.animal-detail {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-}
-
-.animal-detail__back {
-    align-self: flex-start;
-    color: #047857;
-    font-size: 0.9375rem;
-    text-decoration: none;
-}
-
-.animal-detail__back:hover {
-    text-decoration: underline;
-}
-
-.animal-detail__header {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.animal-detail__header h1 {
-    margin: 0;
-    color: #0f172a;
-    font-size: 1.75rem;
-}
-
-.animal-detail__header p {
-    margin: 0;
-    color: #64748b;
-}
-
-.animal-detail__card {
-    max-width: 1000px;
-    overflow: hidden;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-}
-
-.animal-detail__grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin: 0;
-}
-
-.animal-detail__field {
-    padding: 18px 20px;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.animal-detail__field:nth-child(odd) {
-    border-right: 1px solid #e2e8f0;
-}
-
-.animal-detail__field dt {
-    margin-bottom: 6px;
-    color: #64748b;
-    font-size: 0.8125rem;
-    font-weight: 600;
-}
-
-.animal-detail__field dd {
-    margin: 0;
-    color: #0f172a;
-    font-size: 0.9375rem;
-}
-
-.animal-detail__notes {
-    grid-column: 1 / -1;
-    border-right: 0;
-}
-
+﻿.animal-detail { display: flex; flex-direction: column; gap: 24px; min-width: 0; color: #0f172a; }
+.animal-detail__back { align-self: flex-start; color: #047857; font-size: .9375rem; text-decoration: none; padding: 4px 0; }
+.animal-detail__back:hover { text-decoration: underline; }
+.animal-detail__back-links { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.animal-detail__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 28px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }
+.animal-detail__header > div { min-width: 0; }
+.animal-detail__header-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.animal-detail__header h1 { margin: 4px 0 8px; font-size: clamp(1.5rem, 3vw, 2rem); overflow-wrap: anywhere; }
+.animal-detail__header p { margin: 0; color: #475569; line-height: 1.6; overflow-wrap: anywhere; }
+.animal-detail__header .animal-detail__eyebrow { color: #047857; font-size: .8125rem; font-weight: 650; }
+.animal-detail__badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.animal-detail__badges span { padding: 4px 10px; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; border-radius: 20px; font-size: .8125rem; }
+.animal-detail__edit { flex-shrink: 0; padding: 10px 16px; border: 1px solid #047857; color: #047857; border-radius: 8px; text-decoration: none; font-size: .875rem; font-weight: 600; }
+.animal-detail__nav { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; }
+.animal-detail__nav-card { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; padding: 20px 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; color: #0f172a; text-decoration: none; overflow-wrap: anywhere; }
+.animal-detail__nav-card:hover, .animal-detail__nav-card[aria-current='page'] { border-color: #047857; background: #f0fdf7; }
+.animal-detail__nav-card[aria-current='page'] { box-shadow: inset 0 3px 0 #047857; }
+.animal-detail__nav-card strong { font-size: .9375rem; line-height: 1.4; }
+.animal-detail__nav-card > span:last-child { font-size: .8125rem; line-height: 1.5; color: #475569; }
+.animal-detail__nav-icon { display: inline-flex; padding: 10px; color: #047857; background: #ecfdf5; border-radius: 10px; }
+.animal-detail a:focus-visible, .animal-detail button:focus-visible { outline: 3px solid #047857; outline-offset: 4px; }
+.animal-detail__card, .animal-detail__module { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; min-width: 0; }
+.animal-detail__card > h2, .animal-detail__module > h2 { margin: 0; padding: 22px 24px; font-size: 1.125rem; border-bottom: 1px solid #e2e8f0; }
+.animal-detail__module { padding: 0 24px 24px; overflow-x: auto; }
+.animal-detail__module > h2 { margin: 0 -24px 24px; }
+.animal-detail__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
+.animal-detail__field { min-width: 0; padding: 20px 24px; border-bottom: 1px solid #e2e8f0; }
+.animal-detail__field dt { margin-bottom: 8px; color: #475569; font-size: .8125rem; font-weight: 600; }
+.animal-detail__field dd { margin: 0; color: #0f172a; font-size: .9375rem; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+.animal-detail__notice { padding: 0 24px; color: #475569; line-height: 1.5; }
+.animal-timeline { list-style: none; margin: 0; padding: 0; }
+.animal-timeline li { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 20px; padding: 20px 0; border-bottom: 1px solid #e2e8f0; }
+.animal-timeline time { color: #047857; font-size: .875rem; font-variant-numeric: tabular-nums; }
+.animal-timeline h3 { margin: 0 0 8px; font-size: 1rem; }
+.animal-timeline p { margin: 0; color: #475569; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
+@media (max-width: 1200px) { .animal-detail__nav { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 700px) {
-    .animal-detail__grid {
-        grid-template-columns: 1fr;
-    }
-
-    .animal-detail__field:nth-child(odd) {
-        border-right: 0;
-    }
+  .animal-detail__header { flex-direction: column; padding: 20px; }
+  .animal-detail__nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .animal-detail__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .animal-detail__field { padding: 16px; }
+  .animal-detail__module { padding: 0 16px 16px; }
+  .animal-detail__module > h2 { margin: 0 -16px 20px; }
+  .animal-timeline li { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+}
+@media (max-width: 380px) {
+  .animal-detail__nav, .animal-detail__grid { grid-template-columns: minmax(0, 1fr); }
 }

@@ -22,3 +22,9 @@ export interface BirthRecord {
   dystocia: boolean
   notes: string | null
 }
+
+export type BirthDetailState =
+  | { status: 'idle' }
+  | { status: 'loading'; birthId: string }
+  | { status: 'success'; birthId: string; record: BirthRecord }
+  | { status: 'error'; birthId: string; message: string }

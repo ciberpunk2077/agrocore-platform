@@ -68,30 +68,20 @@ function VaccinationHistory({ animalId, saved, actionsDisabled, onEdit, onView, 
         </div>
       ) : history.filter((item) => !excludedIds.includes(item.id)).length === 0 ? <p>Todavía no hay vacunaciones para este animal.</p> : (
         <div className="vaccination-history__table-wrapper">
-          <table>
+          <table className="vaccination-history__cards" role="table">
             <thead>
               <tr><th scope="col">Fecha de aplicación</th><th scope="col">Vacuna</th><th scope="col">Dosis</th><th scope="col">Próxima aplicación</th><th scope="col">Acciones</th></tr>
             </thead>
-            <tbody>
-              {history.filter((item) => !excludedIds.includes(item.id)).map((item) => (
-                <tr key={item.id}>
-                  <td>{formatDate(item.application_date)}</td>
-                  <td>
+            <tbody role="rowgroup">
+              {history.filter((item) => !excludedIds.includes(item.id)).sort((a, b) => b.application_date.localeCompare(a.application_date)).map((item) => (
+                <tr role="row" key={item.id}>
+                  <td data-label="Fecha de aplicación" role="cell">{formatDate(item.application_date)}</td>
+                  <td data-label="Vacuna" role="cell">
                     {item.vaccine_name}
-                    {(item.batch?.trim() || item.veterinarian?.trim() || item.notes?.trim()) && (
-                      <details>
-                        <summary>Ver detalles</summary>
-                        <dl>
-                          {item.batch?.trim() && <div><dt>Lote</dt><dd>{item.batch}</dd></div>}
-                          {item.veterinarian?.trim() && <div><dt>Veterinario</dt><dd>{item.veterinarian}</dd></div>}
-                          {item.notes?.trim() && <div><dt>Notas</dt><dd>{item.notes}</dd></div>}
-                        </dl>
-                      </details>
-                    )}
                   </td>
-                  <td>{item.dose}</td>
-                  <td>{item.next_application_date ? formatDate(item.next_application_date) : '—'}</td>
-                  <td>
+                  <td data-label="Dosis" role="cell">{item.dose}</td>
+                  <td data-label="Próxima aplicación" role="cell">{item.next_application_date ? formatDate(item.next_application_date) : '—'}</td>
+                  <td className="vaccination-history__actions" data-label="Acciones" role="cell">
                     <button type="button" disabled={actionsDisabled} onClick={() => onView(item.id)}>Ver detalles</button>
                     <WriteOnly><button type="button" disabled={actionsDisabled} onClick={() => onEdit(item.id)}>Editar</button></WriteOnly>
                     <WriteOnly><button type="button" disabled={actionsDisabled} onClick={() => onDelete(item.id)}>Eliminar</button></WriteOnly>

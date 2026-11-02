@@ -1,22 +1,24 @@
 from datetime import timedelta
 
-from django.db.models import Avg, OuterRef, Subquery
-from django.utils import timezone
+from django.db.models import Avg, OuterRef, Q, Subquery
 
 from apps.animals.models import Animal
 from apps.weights.models import Weight
 from apps.vaccinations.models import Vaccination
 from apps.pregnancy.models import Pregnancy, PregnancyStatus
 from apps.births.models import Birth
+from apps.common.temporal import get_business_today
 
 
 class DashboardSelector:
+    # Check related tenant ownership without filtering related is_active: valid
+    # historical events remain eligible when their animals/relations are archived.
 
     @staticmethod
     def summary(context):
 
         organization = context.organization
-        today = timezone.localdate()
+        today = get_business_today(context)
         next_30_days = today + timedelta(days=30)
 
         total_animals = Animal.objects.filter(
@@ -32,13 +34,18 @@ class DashboardSelector:
 
         pregnancies = Pregnancy.objects.filter(
             organization=organization,
+            animal__organization=organization,
+            breeding__organization=organization,
             is_active=True,
             status=PregnancyStatus.ACTIVE,
             confirmed=True,
         ).count()
 
         births_this_month = Birth.objects.filter(
+            Q(calf__isnull=True) | Q(calf__organization=organization),
             organization=organization,
+            mother__organization=organization,
+            pregnancy__organization=organization,
             is_active=True,
             birth_date__year=today.year,
             birth_date__month=today.month,
@@ -46,6 +53,8 @@ class DashboardSelector:
 
         upcoming_births = Pregnancy.objects.filter(
             organization=organization,
+            animal__organization=organization,
+            breeding__organization=organization,
             is_active=True,
             status=PregnancyStatus.ACTIVE,
             confirmed=True,
@@ -55,6 +64,7 @@ class DashboardSelector:
 
         vaccinations_due = Vaccination.objects.filter(
             organization=organization,
+            animal__organization=organization,
             is_active=True,
             next_application_date__lte=today,
         ).count()
@@ -97,7 +107,7 @@ class DashboardSelector:
     def upcoming_births(context):
 
         organization = context.organization
-        today = timezone.localdate()
+        today = get_business_today(context)
         next_30_days = today + timedelta(days=30)
 
         pregnancies = (
@@ -105,6 +115,8 @@ class DashboardSelector:
             .select_related("animal")
             .filter(
                 organization=organization,
+                animal__organization=organization,
+                breeding__organization=organization,
                 is_active=True,
                 status=PregnancyStatus.ACTIVE,
                 confirmed=True,
@@ -117,7 +129,7 @@ class DashboardSelector:
         return [
             {
                 "animal_id": pregnancy.animal_id,
-                "animal": str(pregnancy.animal),
+                "animal": pregnancy.animal.internal_id or str(pregnancy.animal_id),
                 "expected_birth": pregnancy.expected_birth,
             }
             for pregnancy in pregnancies

@@ -1,0 +1,6 @@
+.ag-demo { margin: 0 auto; padding: 16px; max-width: 1440px; font-family: var(--ag-font-family); color: var(--ag-text); background: var(--ag-bg); }
+.ag-demo__themes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+.ag-theme-preview { min-width: 0; padding: 16px; display: flex; flex-direction: column; gap: 16px; background: var(--ag-bg); color: var(--ag-text); border-radius: var(--ag-radius-lg); color-scheme: light; }
+.ag-theme-preview[data-ag-theme="dark"] { color-scheme: dark; }
+.ag-demo__stack { display: flex; flex-direction: column; gap: 16px; }
+.ag-demo__row { display: flex; flex-wrap: wrap; gap: 8px; }

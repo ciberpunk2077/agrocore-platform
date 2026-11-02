@@ -12,7 +12,10 @@ def create_organization(**data) -> Organization:
     """
     Crea una nueva organización.
     """
-    return Organization.objects.create(**data)
+    organization = Organization(**data)
+    Organization._meta.get_field("timezone").clean(organization.timezone, organization)
+    organization.save()
+    return organization
 
 
 def update_organization(
@@ -23,6 +26,7 @@ def update_organization(
     Actualiza una organización existente.
     """
 
+    Organization._meta.get_field("timezone").clean(data.get("timezone", organization.timezone), organization)
     for field, value in data.items():
         setattr(organization, field, value)
 

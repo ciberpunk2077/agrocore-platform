@@ -1,4 +1,5 @@
 ﻿import assert from 'node:assert/strict'
+import { detailImports } from '../reproduction/test-support.mjs'
 import test from 'node:test'
 import * as jsx from 'react/jsx-runtime'
 import { load, harness, tick, deferred, find, nodes, button, text } from './test-support.mjs'
@@ -8,7 +9,7 @@ const historyPath = `/api/animal-movements/animal/${animalId}/history`
 const animalPath = `/api/animals/${animalId}`
 const changed = { ...record, reason: ' changed ', notes: ' historical text ' }
 const updatedPayload = updateValidation.updatePayload(changed)
-const importBase = (e,h) => ({react:h.react,'react/jsx-runtime':jsx,'../../auth/session':e.session,'../../lib/api':e.api,'../../lib/api-errors':e.errors,'../animal-movements.service':e.service,'../update-validation':updateValidation})
+const importBase = (e,h) => ({...detailImports,react:h.react,'react/jsx-runtime':jsx,'../../auth/session':e.session,'../../lib/api':e.api,'../../lib/api-errors':e.errors,'../animal-movements.service':e.service,'../update-validation':updateValidation})
 function detailEnv(e=env(), extra={}) {
   const h=harness(), close=[]
   const component=load('./components/AnimalMovementDetail.tsx',importBase(e,h)).default
@@ -32,7 +33,7 @@ async function scopeEditor(e=env()) {
 test('DETAIL fresh GET, all fields and historical ID fallback; open/close never writes',async()=>{
   const d=detailEnv(undefined,{types:[],farms:[],lots:[]});d.e.queue(detailPath,{data:{...record,reason:' spaces ',notes:' notes ',origin_status_id:null}})
   d.render();assert.match(text(d.tree()),/Cargando/);await tick();d.render()
-  for(const value of [record.id,record.date,record.movement_type_id,record.origin_farm_id,record.origin_lot_id,record.destination_farm_id,record.destination_lot_id,' spaces ',' notes ','Sin snapshot'])assert.ok(text(d.tree()).includes(value),value)
+  for(const value of [record.id,'01/01/2026',record.movement_type_id,record.origin_farm_id,record.origin_lot_id,record.destination_farm_id,record.destination_lot_id,' spaces ',' notes ','Sin snapshot'])assert.ok(text(d.tree()).includes(value),value)
   button(d.tree(),'Volver').props.onClick();assert.equal(d.close.length,1);assert.equal(d.e.count('GET'),1);assert.equal(d.e.count('PUT'),0);assert.equal(d.e.count('POST'),0)
 })
 for(const role of ['OWNER','ADMIN','VETERINARIAN','OPERATOR','VIEWER'])test(`history ${role}: details always available, edit only write`,()=>{

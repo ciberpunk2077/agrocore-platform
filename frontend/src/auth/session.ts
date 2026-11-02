@@ -1,8 +1,9 @@
 import type { LoginResponse, User } from './types'
 
-const ACCESS_TOKEN_KEY = 'agrocore.access'
-const REFRESH_TOKEN_KEY = 'agrocore.refresh'
-const USER_KEY = 'agrocore.user'
+const demo = typeof __AGROCORE_DEMO__ !== 'undefined' && __AGROCORE_DEMO__
+const ACCESS_TOKEN_KEY = demo ? 'agrocore.demo.access' : 'agrocore.access'
+const REFRESH_TOKEN_KEY = demo ? 'agrocore.demo.refresh' : 'agrocore.refresh'
+const USER_KEY = demo ? 'agrocore.demo.user' : 'agrocore.user'
 const listeners = new Set<() => void>()
 let sessionRevision = 0
 

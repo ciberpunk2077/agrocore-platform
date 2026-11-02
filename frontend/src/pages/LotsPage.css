@@ -1,0 +1,7 @@
+﻿.lot-inventory-page { min-width: 0; }
+.lot-inventory-page header h1 { margin: 4px 0 8px; font-size: clamp(1.6rem,3vw,2rem); line-height: 1.3; color: #123c2c; }
+.lot-inventory-page header p { margin: 0; color: #52675d; line-height: 1.6; }
+.lot-inventory-page header .lot-inventory-page__eyebrow { color: #047857; font-size: .8125rem; font-weight: 650; }
+.lot-inventory-page__back { align-self: start; color: #047857; text-underline-offset: 4px; font-size: .875rem; font-weight: 600; }
+.lot-inventory-page__back:visited { color: #047857; }
+.lot-inventory-page__back:focus-visible { outline: 3px solid #047857; outline-offset: 4px; }

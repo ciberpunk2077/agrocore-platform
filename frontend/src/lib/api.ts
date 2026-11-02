@@ -25,6 +25,14 @@ export async function apiRequest<T>(
   options: ApiRequestOptions = {},
 ): Promise<T> {
   const { accessToken, expectedStatus, ...requestOptions } = options
+  if (typeof __AGROCORE_DEMO__ !== 'undefined' && __AGROCORE_DEMO__) {
+    const method = (requestOptions.method ?? 'GET').toUpperCase()
+    if (API_BASE_URL !== '/api' || !path.startsWith('/') || path.startsWith('//') || path.includes('\\') ||
+      (!['GET', 'HEAD', 'OPTIONS'].includes(method) && !(method === 'POST' && path === '/auth/login'))) {
+      throw new Error('Demostraci?n de solo lectura: solicitud bloqueada antes de enviarse.')
+    }
+    requestOptions.cache = 'no-store'
+  }
   const requestRevision = getSessionRevision()
   const headers = new Headers(requestOptions.headers)
 

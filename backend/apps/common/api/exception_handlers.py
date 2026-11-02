@@ -5,12 +5,12 @@ from apps.common.exceptions import BusinessException
 
 def business_exception_handler(request, exc: BusinessException):
     """
-    Convierte una excepción de negocio en una respuesta HTTP 400.
+    Mantiene HTTP 400 para negocio y permite errores de configuración controlados.
     """
 
-    return JsonResponse(
-        {
-            "detail": exc.message,
-        },
-        status=400,
-    )
+    payload = {"detail": exc.message}
+    if getattr(exc, "code", None):
+        payload["code"] = exc.code
+    response = JsonResponse(payload, status=getattr(exc, "status_code", 400))
+    response["Cache-Control"] = "no-store"
+    return response

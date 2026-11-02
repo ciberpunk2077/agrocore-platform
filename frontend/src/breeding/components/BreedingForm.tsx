@@ -3,9 +3,9 @@ import { fieldErrorAttributes, normalizeApiError } from '../../lib/api-errors'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 
 import type { Animal } from '../../animals/types'
-import { getSession } from '../../auth/session'
-import { animalLabel, createBreeding } from '../breeding.service'
-import type { BreedingType } from '../types'
+import { animalLabel } from '../breeding.service'
+import type { BreedingCreatePayload, BreedingType } from '../types'
+import { normalizedPayload, payloadError } from '../validation'
 import './BreedingForm.css'
 
 interface BreedingFormProps {
@@ -13,10 +13,11 @@ interface BreedingFormProps {
   types: BreedingType[]
   males: Animal[]
   disabled: boolean
-  onSaved: () => void
+  businessToday: string | null
+  onCreate: (payload: BreedingCreatePayload) => Promise<boolean>
 }
 
-function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormProps) {
+function BreedingForm({ animal, types, males, disabled, businessToday, onCreate }: BreedingFormProps) {
   const [typeId, setTypeId] = useState('')
   const [maleId, setMaleId] = useState('')
   const [date, setDate] = useState('')
@@ -28,36 +29,11 @@ function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormP
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const isActive = useRef(false)
   const submitting = useRef(false)
-  const [today, setToday] = useState(() => new Date().toISOString().slice(0, 10))
 
   useEffect(() => {
     isActive.current = true
-    let timer: ReturnType<typeof setTimeout>
-
-    function scheduleMidnight() {
-      const now = new Date()
-      const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
-      timer = setTimeout(syncToday, midnight - now.getTime())
-    }
-
-    function syncToday() {
-      clearTimeout(timer)
-      setToday(new Date().toISOString().slice(0, 10))
-      scheduleMidnight()
-    }
-
-    function handleVisibilityChange() {
-      if (document.visibilityState === 'visible') syncToday()
-    }
-
-    syncToday()
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', syncToday)
     return () => {
       isActive.current = false
-      clearTimeout(timer)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', syncToday)
     }
   }, [])
 
@@ -67,11 +43,16 @@ function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormP
     if (submitting.current || disabled || !isActive.current) return
     setError(null)
 
+    if (!businessToday) {
+      setError('La fecha operativa de la organización no está disponible.')
+      return
+    }
+
     if (!typeId || !date) {
       setError('Completa el tipo de reproducción y la fecha.')
       return
     }
-    if (date > new Date().toISOString().slice(0, 10)) {
+    if (date > businessToday) {
       setError('La fecha del evento reproductivo no puede ser futura.')
       return
     }
@@ -83,24 +64,18 @@ function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormP
       setError('Selecciona un macho disponible o deja el campo vacío.')
       return
     }
-    const session = getSession()
-    if (!session) {
-      setError('No hay una sesión activa.')
+    const payload = normalizedPayload({ animal_id: animal.id, male_id: maleId || null, breeding_type_id: typeId,
+      date, expected_birth: expectedBirth || null, technician: technician.trim(), notes: notes.trim() })
+    const invalid = payloadError(payload, animal.id, businessToday)
+    if (invalid || !types.some(type => type.id === typeId)) {
+      setError(invalid ?? 'Selecciona un tipo de reproducción disponible.')
       return
     }
 
     submitting.current = true
     setIsSubmitting(true)
     try {
-      await createBreeding({
-        animal_id: animal.id,
-        male_id: maleId || null,
-        breeding_type_id: typeId,
-        date,
-        expected_birth: expectedBirth || null,
-        technician: technician.trim(),
-        notes: notes.trim(),
-      }, session.access)
+      if (!await onCreate(payload)) return
     } catch (cause) {
       if (isActive.current) {
         const normalized = normalizeApiError(cause, 'No fue posible registrar el evento reproductivo. Revisa los datos e intenta de nuevo.')
@@ -120,7 +95,6 @@ function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormP
     setExpectedBirth('')
     setTechnician('')
     setNotes('')
-    onSaved()
   }
 
   return (
@@ -128,7 +102,7 @@ function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormP
       <h3>Registrar evento reproductivo</h3>
       <p>Hembra actual: <strong>{animalLabel(animal)}</strong></p>
       <form onSubmit={handleSubmit}>
-        <fieldset disabled={isSubmitting || disabled}>
+        <fieldset disabled={isSubmitting || disabled || !businessToday}>
           <div className="breeding-form__field">
             <label htmlFor="breeding-type">Tipo de reproducción</label>
             <select id="breeding-type" {...fieldErrorAttributes(fieldErrors, 'breeding_type_id', 'breeding-type')} value={typeId} onChange={(event) => setTypeId(event.target.value)} required>
@@ -149,7 +123,7 @@ function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormP
           </div>
           <div className="breeding-form__field">
             <label htmlFor="breeding-date">Fecha</label>
-            <input id="breeding-date" {...fieldErrorAttributes(fieldErrors, 'date', 'breeding-date')} type="date" value={date} max={today}
+            <input id="breeding-date" {...fieldErrorAttributes(fieldErrors, 'date', 'breeding-date')} type="date" value={date} max={businessToday ?? undefined}
               onChange={(event) => setDate(event.target.value)} required />
             <FieldError errors={fieldErrors} field="date" controlId="breeding-date" />
           </div>
@@ -161,7 +135,7 @@ function BreedingForm({ animal, types, males, disabled, onSaved }: BreedingFormP
           </div>
           <div className="breeding-form__field">
             <label htmlFor="breeding-technician">Técnico (opcional)</label>
-            <input id="breeding-technician" {...fieldErrorAttributes(fieldErrors, 'technician', 'breeding-technician')} value={technician} onChange={(event) => setTechnician(event.target.value)} />
+            <input id="breeding-technician" {...fieldErrorAttributes(fieldErrors, 'technician', 'breeding-technician')} maxLength={150} value={technician} onChange={(event) => setTechnician(event.target.value)} />
             <FieldError errors={fieldErrors} field="technician" controlId="breeding-technician" />
           </div>
           <div className="breeding-form__field breeding-form__wide">

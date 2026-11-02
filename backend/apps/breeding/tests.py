@@ -228,7 +228,7 @@ class BreedingServiceValidationTests(BreedingTestBase):
         self.context = RequestContext(organization=self.organization)
         self.today = date(2025, 3, 1)
         clock = patch(
-            "apps.breeding.services.breeding_service.timezone.localdate",
+            "apps.breeding.services.breeding_service.get_business_today",
             return_value=self.today,
         )
         clock.start()
@@ -431,3 +431,299 @@ class BreedingHistoryTests(BreedingTestBase):
             if path.startswith("/api/breeding/"):
                 self.assertNotIn("put", operations)
                 self.assertNotIn("delete", operations)
+
+
+class BreedingCreateReadContractTests(BreedingTestBase):
+    """FV1-6A certifies the existing public contract; adds no business rules."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.user = User.objects.create_user(email="breeding-create-contract@example.com")
+        cls.membership = Membership.objects.create(
+            user=cls.user, organization=cls.organization,
+            role=Membership.Role.OPERATOR, is_default=True,
+        )
+
+    def setUp(self):
+        self.headers = {"HTTP_AUTHORIZATION": f"Bearer {create_access_token(self.user)}"}
+
+    def payload(self, **overrides):
+        payload = {
+            "animal_id": str(self.original_animal.pk),
+            "breeding_type_id": str(self.original_type.pk),
+            "date": "2025-01-01",
+        }
+        payload.update(overrides)
+        return payload
+
+    def post(self, **overrides):
+        return self.client.post("/api/breeding/", self.payload(**overrides), content_type="application/json", **self.headers)
+
+    def get(self, path):
+        return self.client.get(path, **self.headers)
+
+    def test_minimal_post_200_exact_shape_defaults_and_fresh_get(self):
+        response = self.post()
+        self.assertEqual(response.status_code, 200, response.content)
+        result = response.json()
+        self.assertEqual(set(result), {"id", "animal_id", "male_id", "breeding_type_id", "date", "expected_birth", "technician", "notes"})
+        self.assertEqual(result["animal_id"], str(self.original_animal.pk))
+        self.assertEqual(result["breeding_type_id"], str(self.original_type.pk))
+        self.assertEqual(result["date"], "2025-01-01")
+        self.assertIsNone(result["male_id"])
+        self.assertIsNone(result["expected_birth"])
+        self.assertEqual(result["technician"], "")
+        self.assertEqual(result["notes"], "")
+        event = BreedingEvent.objects.get(pk=result["id"])
+        self.assertEqual(event.organization_id, self.organization.pk)
+        self.assertTrue(event.is_active)
+        fresh = self.get(f"/api/breeding/{result['id']}")
+        self.assertEqual(fresh.status_code, 200)
+        self.assertEqual(fresh.json(), result)
+
+    def test_full_post_preserves_text_spaces_and_nullable_fields(self):
+        fields = dict(male_id=str(self.original_male.pk), expected_birth="2025-10-01", technician="  Técnico  ", notes="\n notas \n")
+        response = self.post(**fields)
+        self.assertEqual(response.status_code, 200)
+        for key, value in fields.items():
+            self.assertEqual(response.json()[key], value)
+
+    def test_explicit_null_optional_relations_and_dates_are_valid(self):
+        response = self.post(male_id=None, expected_birth=None)
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()["male_id"])
+        self.assertIsNone(response.json()["expected_birth"])
+
+    def test_null_texts_are_422_without_persistence(self):
+        for field in ("technician", "notes"):
+            with self.subTest(field=field):
+                response = self.post(**{field: None})
+                self.assertEqual(response.status_code, 422)
+                self.assertFalse(BreedingEvent._base_manager.exists())
+
+    def test_technician_150_accepted_and_151_returns_400(self):
+        accepted = self.post(technician="x" * 150)
+        self.assertEqual(accepted.status_code, 200)
+        self.assertEqual(accepted.json()["technician"], "x" * 150)
+        rejected = self.post(technician="x" * 151)
+        self.assertEqual(rejected.status_code, 400)
+        self.assertIsInstance(rejected.json()["detail"], str)
+        self.assertEqual(BreedingEvent._base_manager.count(), 1)
+
+    def test_sequential_equivalent_posts_remain_permitted(self):
+        first, second = self.post(), self.post()
+        self.assertEqual((first.status_code, second.status_code), (200, 200))
+        self.assertNotEqual(first.json()["id"], second.json()["id"])
+        self.assertEqual(BreedingEvent.objects.count(), 2)
+
+    def test_all_four_writer_roles_create(self):
+        for role in (Membership.Role.OWNER, Membership.Role.ADMIN, Membership.Role.VETERINARIAN, Membership.Role.OPERATOR):
+            with self.subTest(role=role):
+                self.membership.role = role
+                self.membership.save(update_fields=["role"])
+                self.assertEqual(self.post().status_code, 200)
+        self.assertEqual(BreedingEvent.objects.count(), 4)
+
+    def test_viewer_reads_but_cannot_create_before_service(self):
+        self.membership.role = Membership.Role.VIEWER
+        self.membership.save(update_fields=["role"])
+        with patch("apps.breeding.api.endpoints.BreedingService.create") as service:
+            self.assertEqual(self.post().status_code, 403)
+            service.assert_not_called()
+        self.assertEqual(self.get("/api/breeding/").status_code, 200)
+        self.assertFalse(BreedingEvent._base_manager.exists())
+
+    def test_foreign_and_missing_relations_are_400(self):
+        cases = (
+            dict(animal_id=str(self.other_female.pk)), dict(male_id=str(self.other_male.pk)),
+            dict(animal_id=str(uuid4())), dict(male_id=str(uuid4())), dict(breeding_type_id=str(uuid4())),
+        )
+        for fields in cases:
+            with self.subTest(fields=fields):
+                self.assertEqual(self.post(**fields).status_code, 400)
+                self.assertFalse(BreedingEvent._base_manager.exists())
+
+    def test_inactive_relations_are_400(self):
+        for relation, field in ((self.new_animal, "animal_id"), (self.new_male, "male_id"), (self.new_type, "breeding_type_id")):
+            with self.subTest(field=field):
+                relation.delete()
+                self.assertEqual(self.post(**{field: str(relation.pk)}).status_code, 400)
+                self.assertFalse(BreedingEvent._base_manager.exists())
+
+    def test_wrong_sexes_and_same_animal_are_400(self):
+        for fields in (dict(animal_id=str(self.original_male.pk)), dict(male_id=str(self.new_animal.pk)), dict(male_id=str(self.original_animal.pk))):
+            with self.subTest(fields=fields):
+                self.assertEqual(self.post(**fields).status_code, 400)
+                self.assertFalse(BreedingEvent._base_manager.exists())
+
+    def test_list_history_detail_tenant_isolation(self):
+        own = self.post().json()
+        foreign = self.make_event(organization=self.other_organization, animal=self.other_female, male=self.other_male)
+        foreign.save()
+        self.assertEqual([item["id"] for item in self.get("/api/breeding/").json()], [own["id"]])
+        history = self.get(f"/api/breeding/animal/{self.original_animal.pk}/history")
+        self.assertEqual(history.json(), [own])
+        self.assertEqual(self.get(f"/api/breeding/animal/{self.other_female.pk}/history").json(), [])
+        self.assertEqual(self.get(f"/api/breeding/{foreign.pk}").status_code, 404)
+        self.assertEqual(self.get(f"/api/breeding/{uuid4()}").status_code, 404)
+
+    def test_soft_deleted_event_absent_from_list_history_and_detail(self):
+        created = self.post().json()
+        event = BreedingEvent.objects.get(pk=created["id"])
+        event.delete()
+        self.assertEqual(self.get("/api/breeding/").json(), [])
+        self.assertEqual(self.get(f"/api/breeding/animal/{self.original_animal.pk}/history").json(), [])
+        self.assertEqual(self.get(f"/api/breeding/{event.pk}").status_code, 404)
+        persisted = BreedingEvent._base_manager.get(pk=event.pk)
+        self.assertFalse(persisted.is_active)
+        self.assertIsNotNone(persisted.deleted_at)
+
+    def test_inactive_animal_still_allows_existing_event_reads(self):
+        created = self.post().json()
+        self.original_animal.delete()
+        self.assertEqual(self.get(f"/api/breeding/{created['id']}").json(), created)
+        self.assertEqual(self.get(f"/api/breeding/animal/{self.original_animal.pk}/history").json(), [created])
+
+    def test_put_patch_delete_remain_unpublished(self):
+        from config.api import api
+        for path, operations in api.get_openapi_schema()["paths"].items():
+            if path.startswith("/api/breeding/"):
+                self.assertTrue(set(operations).issubset({"get", "post"}))
+        created = self.post().json()
+        for method in ("put", "patch", "delete"):
+            with self.subTest(method=method):
+                response = getattr(self.client, method)(f"/api/breeding/{created['id']}", self.payload(), content_type="application/json", **self.headers)
+                self.assertEqual(response.status_code, 405)
+        self.assertTrue(BreedingEvent.objects.filter(pk=created["id"]).exists())
+
+    def test_no_new_birth_date_or_type_specific_male_rule(self):
+        Animal._base_manager.filter(pk=self.original_animal.pk).update(birth_date=date(2025, 2, 1))
+        for breeding_type in (self.original_type, self.new_type):
+            with self.subTest(type=breeding_type.code):
+                response = self.post(breeding_type_id=str(breeding_type.pk), male_id=None)
+                self.assertEqual(response.status_code, 200)
+
+    def test_invalid_uuid_and_date_payload_are_422(self):
+        for fields in (dict(animal_id="bad"), dict(male_id=""), dict(date="2025-02-30"), dict(expected_birth="")):
+            with self.subTest(fields=fields):
+                self.assertEqual(self.post(**fields).status_code, 422)
+                self.assertFalse(BreedingEvent._base_manager.exists())
+
+
+class BreedingTenantBusinessDateTests(BreedingTestBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.user = User.objects.create_user(email="tenant-date@example.com")
+        Membership.objects.create(user=cls.user, organization=cls.organization, role=Membership.Role.OPERATOR, is_default=True)
+
+    def post_date(self, value):
+        return self.client.post("/api/breeding/", {
+            "animal_id": str(self.original_animal.pk), "breeding_type_id": str(self.original_type.pk), "date": value,
+        }, content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {create_access_token(self.user)}")
+
+    def test_post_mexico_boundaries_without_mocking_localdate(self):
+        from datetime import datetime
+        for instant, tomorrow_status in (
+            ("2026-10-05T23:30:00+00:00", 400),
+            ("2026-10-06T00:30:00+00:00", 400),
+            ("2026-10-06T05:59:59+00:00", 400),
+            ("2026-10-06T06:00:00+00:00", 200),
+        ):
+            with self.subTest(instant=instant), patch("apps.common.temporal.timezone.now", return_value=datetime.fromisoformat(instant)):
+                self.assertEqual(self.post_date("2026-10-05").status_code, 200)
+                before = BreedingEvent.objects.count()
+                response = self.post_date("2026-10-06")
+                self.assertEqual(response.status_code, tomorrow_status, response.content)
+                self.assertEqual(BreedingEvent.objects.count(), before + (tomorrow_status == 200))
+
+    def test_corrupt_timezone_blocks_post_without_persistence(self):
+        Organization._base_manager.filter(pk=self.organization.pk).update(timezone="invalid")
+        response = self.post_date("2025-01-01")
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["code"], "tenant_timezone_unavailable")
+        self.assertFalse(BreedingEvent.objects.exists())
+
+    def test_existing_future_record_remains_readable_and_unchanged(self):
+        from datetime import datetime
+        event = self.make_event(date=date(2026, 10, 6))
+        event.save()
+        with patch("apps.common.temporal.timezone.now", return_value=datetime.fromisoformat("2026-10-06T00:30:00+00:00")):
+            response = self.client.get(f"/api/breeding/animal/{event.animal_id}/history", HTTP_AUTHORIZATION=f"Bearer {create_access_token(self.user)}")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()[0]["date"], "2026-10-06")
+            self.assertEqual(self.post_date("2026-10-06").status_code, 400)
+        event.refresh_from_db()
+        self.assertEqual(event.date, date(2026, 10, 6))
+
+
+class BreedingDetailReadContractTests(BreedingTestBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.user = User.objects.create_user(email="breeding-detail@example.com")
+        cls.membership = Membership.objects.create(user=cls.user, organization=cls.organization,
+                                                  role=Membership.Role.VIEWER, is_default=True)
+
+    def detail(self, event_id):
+        return self.client.get(f"/api/breeding/{event_id}", HTTP_AUTHORIZATION=f"Bearer {create_access_token(self.user)}")
+
+    def test_all_five_roles_read_exact_detail_contract(self):
+        event = self.make_event(technician="  Técnico fresco  ", notes="\n Notas frescas \n")
+        event.save()
+        for role in (Membership.Role.OWNER, Membership.Role.ADMIN, Membership.Role.VETERINARIAN,
+                     Membership.Role.OPERATOR, Membership.Role.VIEWER):
+            with self.subTest(role=role):
+                Membership._base_manager.filter(pk=self.membership.pk).update(role=role)
+                response = self.detail(event.pk)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), {
+                    "id": str(event.pk), "animal_id": str(event.animal_id), "male_id": str(event.male_id),
+                    "breeding_type_id": str(event.breeding_type_id), "date": "2025-01-01", "expected_birth": "2025-10-01",
+                    "technician": "  Técnico fresco  ", "notes": "\n Notas frescas \n",
+                })
+
+    def test_foreign_missing_and_soft_deleted_are_indistinguishable(self):
+        foreign = self.make_event(organization=self.other_organization, animal=self.other_female, male=self.other_male)
+        foreign.save()
+        deleted = self.make_event()
+        deleted.save()
+        deleted.delete()
+        responses = [self.detail(pk) for pk in (foreign.pk, uuid4(), deleted.pk)]
+        for response in responses:
+            self.assertEqual(response.status_code, 404)
+            self.assertEqual(response.json(), {"detail": "Evento de reproducción no encontrado."})
+
+    def test_historical_nullable_fields_and_inactive_animal_remain_readable(self):
+        event = self.make_event(male=None, expected_birth=None, technician="", notes="", date=date(2099, 1, 1))
+        event.save()
+        self.original_animal.delete()
+        Organization._base_manager.filter(pk=self.organization.pk).update(timezone="corrupt")
+        response = self.detail(event.pk)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["date"], "2099-01-01")
+        for field in ("male_id", "expected_birth"):
+            self.assertIsNone(response.json()[field])
+        # The public schema also permits null texts, even though the current
+        # database columns store blank strings rather than NULL.
+        from apps.breeding.api.schemas import BreedingResponseSchema
+        nullable = BreedingResponseSchema.model_validate({**response.json(), "technician": None, "notes": None})
+        self.assertIsNone(nullable.technician)
+        self.assertIsNone(nullable.notes)
+
+    def test_detail_auth_and_invalid_role_reject_before_selector(self):
+        event = self.make_event()
+        event.save()
+        with patch("apps.breeding.api.endpoints.BreedingSelector.get_by_id") as selector:
+            self.assertEqual(self.client.get(f"/api/breeding/{event.pk}").status_code, 401)
+            Membership._base_manager.filter(pk=self.membership.pk).update(role="UNKNOWN")
+            self.assertEqual(self.detail(event.pk).status_code, 403)
+            selector.assert_not_called()
+
+    def test_detail_openapi_remains_get_only(self):
+        from config.api import api
+        operation = api.get_openapi_schema()["paths"]["/api/breeding/{event_id}"]
+        self.assertEqual(set(operation), {"get"})
+        response = operation["get"]["responses"][200]["content"]["application/json"]["schema"]
+        self.assertEqual(response["$ref"], "#/components/schemas/BreedingResponseSchema")

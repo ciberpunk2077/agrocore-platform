@@ -1,11 +1,16 @@
 import { apiRequest } from '../lib/api'
-import type { CurrentContext, LoginCredentials, LoginResponse } from './types'
+import type { ResolvedCurrentContext, LoginCredentials, LoginResponse } from './types'
+import { parseCurrentContext } from './current-context-validation'
+import { createBusinessTimeLease } from './business-time'
 
-export function getCurrentContext(accessToken: string, signal?: AbortSignal): Promise<CurrentContext> {
-  return apiRequest<CurrentContext>('/common/context', {
+export async function getCurrentContext(accessToken: string, signal?: AbortSignal): Promise<ResolvedCurrentContext> {
+  const started = performance.now(), wall = Date.now()
+  const data = parseCurrentContext(await apiRequest<unknown>('/common/context', {
     accessToken,
     signal,
-  })
+    cache: 'no-store', expectedStatus: 200,
+  }))
+  return { ...data, businessTimeLease: createBusinessTimeLease(data.business_time, started, wall) }
 }
 
 export function login(credentials: LoginCredentials): Promise<LoginResponse> {

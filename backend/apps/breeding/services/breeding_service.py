@@ -1,5 +1,5 @@
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.utils import timezone
+from apps.common.temporal import get_business_today
 
 from apps.animals.models import Animal
 from apps.catalogs.models import BreedingType
@@ -23,7 +23,7 @@ class BreedingService:
                 relations,
             )
 
-            BreedingService._validate_business_rules(data)
+            BreedingService._validate_business_rules(context, data)
 
             event = BreedingEvent(
                 organization=context.organization,
@@ -71,7 +71,7 @@ class BreedingService:
                 relations,
             )
 
-            BreedingService._validate_business_rules(data)
+            BreedingService._validate_business_rules(context, data)
 
             event.animal = relations["animal"]
             event.male = relations["male"]
@@ -114,8 +114,8 @@ class BreedingService:
         )
 
     @staticmethod
-    def _validate_business_rules(data):
-        if data.date > timezone.localdate():
+    def _validate_business_rules(context, data):
+        if data.date > get_business_today(context):
             raise BreedingValidationError(
                 "La fecha del evento reproductivo no puede ser futura."
             )

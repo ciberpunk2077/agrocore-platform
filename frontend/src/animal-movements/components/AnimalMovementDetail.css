@@ -1,0 +1,17 @@
+.animal-movements { container: movement-module / inline-size; min-width: 0; }
+.animal-detail__module .animal-movements { max-width: none; }
+#repro-panel-movement .repro-detail__fields { grid-template-columns: minmax(0, 1fr); }
+#repro-panel-movement .repro-detail__field:nth-child(n+5) { grid-column: 1 / -1; }
+#repro-panel-movement .repro-detail__field:nth-child(3) { background: #f0f9f6; border-color: #c9e3d7; }
+#repro-panel-movement .repro-detail__field:nth-child(4) { background: #f0f7fb; border-color: #cbdfe9; }
+#repro-panel-movement .repro-detail__field:nth-child(3) > dt,
+#repro-panel-movement .repro-detail__field:nth-child(4) > dt { text-transform: uppercase; font-weight: 700; letter-spacing: .06em; }
+.movement-detail__location { display: grid; gap: 16px; }
+.movement-detail__location > span { color: #52675d; font-size: .8125rem; }
+.movement-detail__location strong { display: block; color: #163c2c; font-size: .9375rem; font-weight: 600; }
+.movement-detail__technical { font-size: .8125rem; }
+.movement-detail__technical dl { display: grid; gap: 12px; margin: 8px 0 0; }
+#repro-panel-movement .movement-detail__technical dd { font-size: .8125rem; }
+@container repro-detail (min-width: 540px) {
+  #repro-panel-movement .repro-detail__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

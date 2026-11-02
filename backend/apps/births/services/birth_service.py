@@ -19,6 +19,7 @@ from apps.pregnancy.models import (
 from apps.animals.models import Animal
 from apps.catalogs.models import Gender
 from apps.births.services.calf_service import CalfService
+from apps.common.temporal import get_business_today
 
 
 class BirthService:
@@ -55,6 +56,7 @@ class BirthService:
                 data,
                 pregnancy,
                 mother,
+                get_business_today(context),
             )
 
             calf = None
@@ -183,6 +185,7 @@ class BirthService:
         data,
         pregnancy,
         mother,
+        business_today,
     ):
 
         if pregnancy.status != PregnancyStatus.ACTIVE:
@@ -213,7 +216,7 @@ class BirthService:
                 "La fecha del parto no puede ser anterior al diagnÃ³stico de gestaciÃ³n."
             )
 
-        if data.birth_date > timezone.localdate():
+        if data.birth_date > business_today:
             raise BirthValidationError(
                 "La fecha del parto no puede estar en el futuro."
             )

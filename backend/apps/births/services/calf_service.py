@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 from apps.animals.models import Animal
 from apps.catalogs.models import AnimalStatus
 from apps.common.exceptions import BirthValidationError
+from apps.common.temporal import get_business_today
 
 
 class CalfService:
@@ -57,10 +58,9 @@ class CalfService:
             notes="Creado automáticamente desde el registro del parto.",
         )
 
-        calf.full_clean()
         try:
             with transaction.atomic():
-                calf.save()
+                calf.save(_birth_business_today=get_business_today(context))
         except IntegrityError as exc:
             if CalfService._is_internal_id_collision(exc):
                 raise BirthValidationError(

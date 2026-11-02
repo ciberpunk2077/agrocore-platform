@@ -10,6 +10,7 @@ from django.utils import timezone
 from apps.animals.models import Animal
 from apps.breeding.models import BreedingEvent
 from apps.common.exceptions.pregnancy import PregnancyValidationError
+from apps.common.temporal import get_business_today
 from apps.pregnancy.models import Pregnancy, PregnancyStatus
 
 
@@ -72,6 +73,7 @@ class PregnancyService:
             )
 
             PregnancyService._validate_pregnancy_data(
+                context,
                 data,
                 relations,
             )
@@ -203,6 +205,7 @@ class PregnancyService:
 
     @staticmethod
     def _validate_pregnancy_data(
+        context,
         data,
         relations,
     ):
@@ -219,7 +222,7 @@ class PregnancyService:
                 "al evento reproductivo."
             )
 
-        if data.diagnosis_date > timezone.localdate():
+        if data.diagnosis_date > get_business_today(context):
             raise PregnancyValidationError(
                 "La fecha de diagnóstico no puede ser futura."
             )

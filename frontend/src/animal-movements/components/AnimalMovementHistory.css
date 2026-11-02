@@ -51,3 +51,14 @@
 .animal-movements [role="alert"] {
     color: #b91c1c;
 }
+
+.animal-detail__module .movement-history .expedient-records > tbody { grid-template-columns: minmax(0, 1fr); }
+.animal-detail__module .movement-history .expedient-records > tbody > tr { grid-template-rows: auto 1fr auto auto; }
+.animal-detail__module .movement-history td[data-label='Acciones'] { align-self: end; }
+.movement-history button:focus-visible { outline: 3px solid #047857; outline-offset: 3px; }
+@container movement-module (min-width: 580px) {
+  .animal-detail__module .movement-history .expedient-records > tbody { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container movement-module (min-width: 1000px) {
+  .animal-detail__module .movement-history .expedient-records > tbody { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

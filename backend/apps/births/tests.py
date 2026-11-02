@@ -23,6 +23,7 @@ from apps.catalogs.models import AnimalStatus, Breed, BreedingType, FarmType, Ge
 from apps.farms.models import Farm
 from apps.lots.models import Lot
 from apps.common.context.context import RequestContext
+from apps.common.temporal import get_business_today
 from apps.common.exceptions import (
     BirthValidationError,
     BusinessException,
@@ -229,6 +230,7 @@ class BirthAutomaticCalfRegressionTests(TestCase):
 
         def invalid_save(instance, *args, **kwargs):
             instance.name = None
+            kwargs.pop("_birth_business_today", None)
             # Bypass model validation only to reach a real NOT NULL DB error.
             return models.Model.save(instance, *args, **kwargs)
 
@@ -864,7 +866,7 @@ class ReproductiveFlowHttpE2ETests(TestCase):
                                      code="REPRO_E2E", name="Reproductive E2E lot")
         fields = dict(organization=cls.organization, species=cls.species, breed=cls.breed,
                       status=cls.active, farm=cls.farm, lot=cls.lot,
-                      birth_date=timezone.localdate() - timedelta(days=1000))
+                      birth_date=get_business_today(RequestContext(organization=cls.organization)) - timedelta(days=1000))
         cls.mother = Animal.objects.create(**fields, gender=cls.female, internal_id="E2E_MOTHER")
         cls.father = Animal.objects.create(**fields, gender=cls.male, internal_id="E2E_FATHER")
         cls.other_female = Animal.objects.create(**fields, gender=cls.female, internal_id="E2E_OTHER_FEMALE")
@@ -875,13 +877,13 @@ class ReproductiveFlowHttpE2ETests(TestCase):
         cls.foreign_female = Animal.objects.create(
             organization=cls.foreign_organization, species=cls.species, breed=cls.breed,
             gender=cls.female, status=cls.active, internal_id="E2E_FOREIGN_FEMALE",
-            birth_date=timezone.localdate() - timedelta(days=1000),
+            birth_date=get_business_today(RequestContext(organization=cls.organization)) - timedelta(days=1000),
         )
         cls.initial_animals = list(Animal._base_manager.order_by("pk").values())
 
 
     def test_public_http_flow_creates_breeding_pregnancy_birth_and_calf(self):
-        today = timezone.localdate()
+        today = get_business_today(RequestContext(organization=self.organization))
         expected_birth = (today + timedelta(days=20)).isoformat()
         weight = Decimal("30.00")
         headers = dict(HTTP_AUTHORIZATION=f"Bearer {create_access_token(self.user)}")
@@ -986,7 +988,7 @@ class ReproductiveFlowHttpE2ETests(TestCase):
         return body
 
     def create_http_breeding(self):
-        today = timezone.localdate()
+        today = get_business_today(RequestContext(organization=self.organization))
         return self.flow_request("POST", "/api/breeding/", {
             "animal_id": str(self.mother.pk), "male_id": str(self.father.pk),
             "breeding_type_id": str(self.breeding_type.pk),
@@ -995,7 +997,7 @@ class ReproductiveFlowHttpE2ETests(TestCase):
         })
 
     def create_http_pregnancy(self, breeding):
-        today = timezone.localdate()
+        today = get_business_today(RequestContext(organization=self.organization))
         pregnancy = self.flow_request("POST", "/api/pregnancies/", {
             "breeding_id": breeding["id"], "animal_id": breeding["animal_id"],
             "diagnosis_date": (today - timedelta(days=250)).isoformat(),
@@ -1009,7 +1011,7 @@ class ReproductiveFlowHttpE2ETests(TestCase):
             "pregnancy_id": pregnancy["id"],
             "mother_id": mother_id or pregnancy["animal_id"],
             "calf_gender_id": str(self.female.pk),
-            "birth_date": timezone.localdate().isoformat(), "birth_weight": "30.00",
+            "birth_date": get_business_today(RequestContext(organization=self.organization)).isoformat(), "birth_weight": "30.00",
             "alive": True, "dystocia": False,
         }
 
@@ -1034,7 +1036,7 @@ class ReproductiveFlowHttpE2ETests(TestCase):
     def test_http_cross_tenant_breeding_cannot_create_pregnancy(self):
         breeding = self.create_http_breeding()
         before = self.flow_request("GET", f"/api/breeding/{breeding['id']}")
-        today = timezone.localdate()
+        today = get_business_today(RequestContext(organization=self.organization))
         self.flow_request("POST", "/api/pregnancies/", {
             "breeding_id": breeding["id"], "animal_id": str(self.foreign_female.pk),
             "diagnosis_date": (today - timedelta(days=250)).isoformat(),
@@ -1047,7 +1049,7 @@ class ReproductiveFlowHttpE2ETests(TestCase):
     def test_http_pregnancy_rejects_different_female_of_same_tenant(self):
         breeding = self.create_http_breeding()
         before = self.flow_request("GET", f"/api/breeding/{breeding['id']}")
-        today = timezone.localdate()
+        today = get_business_today(RequestContext(organization=self.organization))
         self.flow_request("POST", "/api/pregnancies/", {
             "breeding_id": breeding["id"], "animal_id": str(self.other_female.pk),
             "diagnosis_date": (today - timedelta(days=250)).isoformat(),
@@ -1366,3 +1368,161 @@ class BirthPregnancyCollisionTests(TestCase):
         self.assertIsInstance(caught.exception.__cause__, sqlite3.IntegrityError)
         self.assertEqual(str(caught.exception.__cause__), "NOT NULL constraint failed: births.alive")
         self.assert_preserved()
+
+class BirthTenantBusinessDateTests(TestCase):
+    setUpTestData = classmethod(BirthInputTranslationHTTPTests.setUpTestData.__func__)
+    data = BirthInputTranslationHTTPTests.data
+    request = BirthInputTranslationHTTPTests.request
+    snapshot = BirthAutomaticCalfRegressionTests.snapshot
+
+    def setUp(self):
+        self.organization.timezone = 'America/Mexico_City'
+        self.organization.save(update_fields=['timezone'])
+
+    def at(self, instant):
+        from datetime import datetime
+        return patch('apps.common.temporal.timezone.now', return_value=datetime.fromisoformat(instant))
+
+    def assert_created(self, response, day):
+        self.assertEqual(response.status_code, 200, response.content)
+        result = response.json()
+        self.assertEqual(set(result), {'id', 'pregnancy_id', 'mother_id', 'calf_id', 'calf_gender_id',
+                                      'birth_date', 'birth_weight', 'alive', 'dystocia', 'notes'})
+        birth = Birth._base_manager.get(pk=result['id'])
+        self.assertEqual(birth.birth_date.isoformat(), day)
+        self.pregnancy.refresh_from_db()
+        self.assertEqual(self.pregnancy.status, PregnancyStatus.FINISHED)
+        if result['alive']:
+            calf = Animal._base_manager.get(pk=result['calf_id'])
+            self.assertEqual(calf.birth_date, birth.birth_date)
+            self.assertEqual(calf.birth_weight, birth.birth_weight)
+            self.assertFalse(hasattr(calf, '_birth_business_today'))
+        else:
+            self.assertIsNone(result['calf_id'])
+
+    def test_mexico_0030_accepts_local_day_05_with_automatic_calf(self):
+        with self.at('2026-10-06T00:30:00+00:00'):
+            self.assert_created(self.request(alive=True, birth_date='2026-10-05'), '2026-10-05')
+
+    def test_mexico_0030_rejects_utc_day_06_without_partial_state(self):
+        before = self.snapshot()
+        with self.at('2026-10-06T00:30:00+00:00'):
+            self.assertEqual(self.request(alive=True, birth_date='2026-10-06').status_code, 400)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_mexico_before_midnight_rejects_06(self):
+        before = self.snapshot()
+        with self.at('2026-10-06T05:59:59+00:00'):
+            self.assertEqual(self.request(alive=True, birth_date='2026-10-06').status_code, 400)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_mexico_midnight_accepts_06_with_automatic_calf(self):
+        with self.at('2026-10-06T06:00:00+00:00'):
+            self.assert_created(self.request(alive=True, birth_date='2026-10-06'), '2026-10-06')
+
+    def test_tenant_ahead_of_utc_accepts_calf_date_in_utc_tomorrow(self):
+        self.organization.timezone = 'Pacific/Kiritimati'
+        self.organization.save(update_fields=['timezone'])
+        with self.at('2026-10-05T12:30:00+00:00'):
+            self.assert_created(self.request(alive=True, birth_date='2026-10-06'), '2026-10-06')
+
+    def test_invalid_timezone_fails_closed_with_controlled_503(self):
+        Organization._base_manager.filter(pk=self.organization.pk).update(timezone='Invalid/Timezone')
+        before = self.snapshot()
+        response = self.request(alive=True)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['code'], 'tenant_timezone_unavailable')
+        self.assertEqual(self.snapshot(), before)
+
+    def test_dead_birth_uses_tenant_day_and_creates_no_animal(self):
+        with self.at('2026-10-06T00:30:00+00:00'):
+            self.assert_created(self.request(birth_date='2026-10-05'), '2026-10-05')
+        self.assertEqual(Animal._base_manager.count(), 2)
+
+    def test_existing_calf_is_not_temporally_or_otherwise_modified(self):
+        calf = Animal.objects.create(organization=self.organization, species=self.mother.species,
+            breed=self.mother.breed, gender=self.female, status=self.mother.status, internal_id='EXISTING')
+        before = Animal._base_manager.filter(pk=calf.pk).values().get()
+        with self.at('2026-10-06T00:30:00+00:00'):
+            response = self.request(alive=True, calf_id=str(calf.pk), calf_gender_id=None, birth_date='2026-10-05')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['calf_id'], str(calf.pk))
+        self.assertEqual(Animal._base_manager.filter(pk=calf.pk).values().get(), before)
+
+    def test_ordinary_animal_save_retains_utc_future_rejection(self):
+        self.mother.birth_date = date(2026, 10, 6)
+        with self.at('2026-10-05T12:30:00+00:00'):
+            with self.assertRaises(ValidationError):
+                self.mother.save()
+
+    def test_birth_error_after_finish_rolls_back_every_write(self):
+        before = self.snapshot()
+        real_finish = BirthService._finish_pregnancy
+        def fail_after_finish(pregnancy):
+            real_finish(pregnancy)
+            self.assertEqual(Pregnancy.objects.get(pk=pregnancy.pk).status, PregnancyStatus.FINISHED)
+            raise RuntimeError('failure before commit')
+        with patch.object(BirthService, '_finish_pregnancy', side_effect=fail_after_finish):
+            with self.assertRaises(RuntimeError):
+                self.request(alive=True)
+        self.assertEqual(self.snapshot(), before)
+
+class BirthDetailHTTPTests(TestCase):
+    setUpTestData = classmethod(BirthInputTranslationHTTPTests.setUpTestData.__func__)
+    data = BirthInputTranslationHTTPTests.data
+
+    def setUp(self):
+        self.birth = BirthService.create(RequestContext(organization=self.organization),
+            BirthCreateSchema(**self.data(alive=True, notes='Detail note')))
+
+    def get_detail(self, identifier=None, user=None):
+        return self.client.get(f'/api/births/{identifier or self.birth.pk}',
+            HTTP_AUTHORIZATION=f'Bearer {create_access_token(user or self.user)}')
+
+    def test_each_read_role_gets_exact_active_detail_contract(self):
+        for role in Membership.Role.values:
+            with self.subTest(role=role):
+                Membership.objects.filter(user=self.user).update(role=role)
+                response = self.get_detail()
+                self.assertEqual(response.status_code, 200)
+                value = response.json()
+                self.assertEqual(set(value), {'id', 'pregnancy_id', 'mother_id', 'calf_id', 'calf_gender_id',
+                    'birth_date', 'birth_weight', 'alive', 'dystocia', 'notes'})
+                self.assertEqual(value['id'], str(self.birth.pk))
+                self.assertEqual(value['mother_id'], str(self.mother.pk))
+                self.assertEqual(value['calf_id'], str(self.birth.calf_id))
+                self.assertEqual(value['birth_weight'], '30.00')
+                self.assertEqual(value['notes'], 'Detail note')
+
+    def test_foreign_tenant_detail_returns_404(self):
+        foreign = Organization.objects.create(code='DETAIL_FOREIGN', name='Foreign')
+        user = User.objects.create_user(email='birth-detail-foreign@example.com')
+        Membership.objects.create(user=user, organization=foreign, role=Membership.Role.VIEWER, is_default=True)
+        self.assertEqual(self.get_detail(user=user).status_code, 404)
+        self.assertEqual(Birth._base_manager.get(pk=self.birth.pk).notes, 'Detail note')
+
+    def test_soft_deleted_birth_detail_returns_404(self):
+        self.birth.delete()
+        self.assertEqual(self.get_detail().status_code, 404)
+        self.pregnancy.refresh_from_db()
+        self.assertEqual(self.pregnancy.status, PregnancyStatus.FINISHED)
+        self.assertTrue(Animal._base_manager.filter(pk=self.birth.calf_id).exists())
+
+    def test_inactive_historical_relations_remain_readable_to_viewer(self):
+        for model, identifier in ((Animal, self.mother.pk), (Animal, self.birth.calf_id),
+                                  (Pregnancy, self.pregnancy.pk), (BreedingEvent, self.breeding.pk), (Gender, self.female.pk)):
+            model._base_manager.filter(pk=identifier).update(is_active=False)
+        Membership.objects.filter(user=self.user).update(role=Membership.Role.VIEWER)
+        response = self.get_detail()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['calf_id'], str(self.birth.calf_id))
+        self.assertEqual(response.json()['calf_gender_id'], str(self.female.pk))
+
+    def test_invalid_uuid_returns_422_without_mutation(self):
+        response = self.get_detail('invalid-uuid')
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(Birth._base_manager.count(), 1)
+
+    def test_inactive_membership_cannot_read_detail(self):
+        Membership.objects.filter(user=self.user).update(is_active=False)
+        self.assertEqual(self.get_detail().status_code, 403)

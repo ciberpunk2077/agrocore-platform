@@ -7,9 +7,11 @@ import AppLayout from '../layouts/AppLayout'
 import AnimalDetailPage from '../pages/AnimalDetailPage'
 import AnimalsPage from '../pages/AnimalsPage'
 import DashboardPage from '../pages/DashboardPage'
+import DashboardDrilldownPage from '../pages/DashboardDrilldownPage'
 import LoginPage from '../pages/LoginPage'
 import NewAnimalPage from '../pages/NewAnimalPage'
 import EditAnimalPage from '../pages/EditAnimalPage'
+import AnimalEditPreviewPage from '../pages/AnimalEditPreviewPage'
 import NotFoundPage from '../pages/NotFoundPage'
 import FarmsPage from '../pages/FarmsPage'
 import FarmDetailPage from '../pages/FarmDetailPage'
@@ -43,6 +45,10 @@ export const router = createBrowserRouter([
           {
             path: '/dashboard',
             element: <DashboardPage />,
+          },
+          {
+            path: '/dashboard/:indicator',
+            element: <DashboardDrilldownPage />,
           },
           {
             path: '/lots',
@@ -89,8 +95,16 @@ export const router = createBrowserRouter([
             element: <AnimalDetailPage />,
           },
           {
+            path: '/animals/:animalId/:section',
+            element: <AnimalDetailPage />,
+          },
+          {
             path: '/animals/:animalId/edit',
             element: <RequireWrite redirectTo="/animals/:animalId"><EditAnimalPage /></RequireWrite>,
+          },
+          {
+            path: '/animals/:animalId/edit-preview',
+            element: <AnimalEditPreviewPage />,
           },
         ],
       },

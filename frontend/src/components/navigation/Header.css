@@ -1,54 +1,33 @@
-.app-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 24px;
-    background: #ffffff;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.app-header__brand {
-    color: #0f172a;
-    font-size: 1.25rem;
-    font-weight: 700;
-}
-
-.app-header__user {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    line-height: 1.25;
-}
-
-.app-header__user-name {
-    color: #0f172a;
-    font-size: 0.9rem;
-    font-weight: 600;
-}
-
-.app-header__user-email {
-    color: #64748b;
-    font-size: 0.8rem;
-}
-
-.app-header__actions {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-.app-header__logout {
-    padding: 8px 12px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #334155;
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-}
-
-.app-header__logout:hover {
-    background: #f8fafc;
-    color: #0f172a;
+﻿.app-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-width: 0; min-height: 84px; padding: 12px 24px; background: #103e34; color: #fff; border-bottom: 1px solid #38695a; box-shadow: 0 3px 12px #103e3414; font-family: var(--ag-font-family); }
+.app-header__heading { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
+.app-header__organization-icon { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; border: 1px solid #528573; border-radius: 12px; background: #205547; color: #c4f0d8; }
+.app-header__organization { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.app-header__organization > span { color: #c4dfd1; font-size: .6875rem; font-weight: 650; letter-spacing: .08em; line-height: 1.5; }
+.app-header__organization > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; line-height: 1.5; color: #fff; }
+.app-header__actions { display: flex; align-items: center; gap: 20px; min-width: 0; max-width: 60%; }
+.app-header__identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.app-header__avatar { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; border-radius: 50%; border: 1px solid #78ac93; background: #c4f0d8; color: #103e34; font-size: .9375rem; font-weight: 700; }
+.app-header__user { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; gap: 3px; }
+.app-header__user-name, .app-header__user-email { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.5; }
+.app-header__user-name { font-size: .875rem; font-weight: 650; color: #fff; }
+.app-header__user-email { color: #c4dfd1; font-size: .75rem; }
+.app-header__role { padding: 1px 8px; background: #245847; color: #dcfce7; border: 1px solid #528573; border-radius: 20px; font-size: .6875rem; line-height: 1.5; overflow-wrap: anywhere; }
+.app-header__logout, .app-header__menu { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 9px 12px; border: 1px solid #83ad98; border-radius: 9px; background: #1b4d40; color: #fff; font: inherit; font-size: .8125rem; line-height: 1.5; cursor: pointer; }
+.app-header__logout { flex-shrink: 0; }
+.app-header__logout:hover, .app-header__menu:hover { background: #2b6250; border-color: #c4f0d8; }
+.app-header__logout:focus-visible, .app-header__menu:focus-visible { outline: 3px solid #d9f99d; outline-offset: 4px; }
+.app-header__menu { display: none; }
+@media (max-width: 1023px) { .app-header { gap: 16px; } .app-header__actions { gap: 12px; } }
+@media (max-width: 767px) {
+  .app-header { flex-wrap: wrap; padding: 12px 16px; gap: 16px; }
+  .app-header__heading { flex-basis: 100%; }
+  .app-header__menu { display: grid; place-items: center; flex-shrink: 0; padding: 8px; }
+  .app-header__organization-icon { flex-basis: 36px; width: 36px; height: 36px; }
+  .app-header__organization > strong { white-space: normal; overflow-wrap: anywhere; }
+  .app-header__actions { justify-content: space-between; width: 100%; max-width: none; gap: 12px; }
+  .app-header__identity { flex: 1; gap: 10px; }
+  .app-header__user-name, .app-header__user-email { white-space: normal; overflow-wrap: anywhere; }
+  .app-header__avatar { flex-basis: 34px; width: 34px; height: 34px; font-size: .8125rem; }
+  .app-header__logout { gap: 6px; padding: 8px; }
+  .app-header__logout svg { width: 18px; height: 18px; }
 }

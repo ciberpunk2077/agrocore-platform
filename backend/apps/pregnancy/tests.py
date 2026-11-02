@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone as datetime_timezone
 import json
 import sqlite3
 from unittest.mock import patch
@@ -20,6 +20,7 @@ from apps.catalogs.models import (
     Species,
 )
 from apps.common.context.context import RequestContext
+from apps.common.temporal import get_business_today, TenantTimezoneUnavailable
 from apps.common.exceptions.pregnancy import PregnancyValidationError
 from apps.organizations.models import Organization
 from apps.pregnancy.api.schemas import PregnancyCreateSchema
@@ -142,6 +143,256 @@ class PregnancyTestBase(TestCase):
         return PregnancyCreateSchema(**fields)
 
 
+class PregnancyAbortSafeTests(PregnancyTestBase):
+    def setUp(self):
+        self.user = User.objects.create_user(email="pregnancy-abort-safe@example.com")
+        self.membership = Membership.objects.create(user=self.user, organization=self.organization,
+            role=Membership.Role.VIEWER, is_default=True)
+        self.pregnancy = PregnancyService.create(RequestContext(organization=self.organization), self.make_payload())
+
+    def abort(self, identifier=None):
+        return self.client.post(f"/api/pregnancies/{identifier or self.pregnancy.pk}/abort",
+            HTTP_AUTHORIZATION=f"Bearer {create_access_token(self.user)}")
+
+    def writer(self, role=Membership.Role.ADMIN):
+        self.membership.role = role
+        self.membership.save(update_fields=["role"])
+
+    def assert_writer(self, role):
+        self.writer(role)
+        before = Pregnancy._base_manager.get(pk=self.pregnancy.pk)
+        response = self.abort()
+        self.assertEqual(response.status_code, 200)
+        self.pregnancy.refresh_from_db()
+        self.assertEqual(self.pregnancy.status, PregnancyStatus.ABORTED)
+        self.assertTrue(self.pregnancy.is_active)
+        self.assertIsNone(self.pregnancy.deleted_at)
+        for field in ("organization_id", "animal_id", "breeding_id", "diagnosis_date", "expected_birth", "confirmed", "notes", "created_at"):
+            self.assertEqual(getattr(self.pregnancy, field), getattr(before, field))
+        self.assertEqual(response.json(), {
+            "id": str(before.pk), "animal_id": str(before.animal_id), "breeding_id": str(before.breeding_id),
+            "diagnosis_date": before.diagnosis_date.isoformat(), "expected_birth": before.expected_birth.isoformat(),
+            "confirmed": before.confirmed, "notes": before.notes, "status": "ABORTED"})
+
+    def test_owner_can_abort_active(self):
+        self.assert_writer(Membership.Role.OWNER)
+
+    def test_admin_can_abort_active(self):
+        self.assert_writer(Membership.Role.ADMIN)
+
+    def test_veterinarian_can_abort_active(self):
+        self.assert_writer(Membership.Role.VETERINARIAN)
+
+    def test_operator_can_abort_active(self):
+        self.assert_writer(Membership.Role.OPERATOR)
+
+    def test_viewer_denied_before_service(self):
+        with patch("apps.pregnancy.api.endpoints.PregnancyService.abort") as service:
+            self.assertEqual(self.abort().status_code, 403)
+            service.assert_not_called()
+        self.pregnancy.refresh_from_db()
+        self.assertEqual(self.pregnancy.status, PregnancyStatus.ACTIVE)
+
+    def test_foreign_and_missing_have_same_rejection(self):
+        self.writer()
+        foreign = PregnancyService.create(RequestContext(organization=self.other_organization), self.make_payload(
+            animal_id=self.other_animal.pk, breeding_id=self.other_breeding.pk))
+        response = self.abort(foreign.pk)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), self.abort(uuid4()).json())
+        foreign.refresh_from_db()
+        self.assertEqual(foreign.status, PregnancyStatus.ACTIVE)
+
+    def test_missing_rejected(self):
+        self.writer()
+        self.assertEqual(self.abort(uuid4()).status_code, 400)
+
+    def test_soft_deleted_rejected(self):
+        self.writer()
+        self.pregnancy.delete()
+        self.assertEqual(self.abort().status_code, 400)
+
+    def test_already_aborted_rejected_without_change(self):
+        self.writer()
+        self.assertEqual(self.abort().status_code, 200)
+        before = list(Pregnancy._base_manager.values())
+        self.assertEqual(self.abort().status_code, 400)
+        self.assertEqual(list(Pregnancy._base_manager.values()), before)
+
+    def test_finished_rejected_without_overwrite(self):
+        self.writer()
+        self.pregnancy.status = PregnancyStatus.FINISHED
+        self.pregnancy.save(update_fields=["status"])
+        self.assertEqual(self.abort().status_code, 400)
+        self.pregnancy.refresh_from_db()
+        self.assertEqual(self.pregnancy.status, PregnancyStatus.FINISHED)
+
+    def test_inactive_relations_do_not_prevent_historical_abort(self):
+        self.animal.delete()
+        self.breeding.delete()
+        self.assert_writer(Membership.Role.ADMIN)
+
+    def test_abort_does_not_require_valid_business_timezone(self):
+        Organization.objects.filter(pk=self.organization.pk).update(timezone="Invalid/Zone")
+        self.assert_writer(Membership.Role.ADMIN)
+
+
+class PregnancyDetailTests(PregnancyTestBase):
+    def setUp(self):
+        self.user = User.objects.create_user(email="pregnancy-detail@example.com")
+        self.membership = Membership.objects.create(user=self.user, organization=self.organization,
+            role=Membership.Role.VIEWER, is_default=True)
+        self.pregnancy = PregnancyService.create(RequestContext(organization=self.organization), self.make_payload())
+
+    def detail(self, identifier=None):
+        return self.client.get(f"/api/pregnancies/{identifier or self.pregnancy.pk}",
+            HTTP_AUTHORIZATION=f"Bearer {create_access_token(self.user)}")
+
+    def assert_role(self, role):
+        self.membership.role = role
+        self.membership.save(update_fields=["role"])
+        self.assertEqual(self.detail().status_code, 200)
+
+    def test_owner_detail(self):
+        self.assert_role(Membership.Role.OWNER)
+
+    def test_admin_detail(self):
+        self.assert_role(Membership.Role.ADMIN)
+
+    def test_veterinarian_detail(self):
+        self.assert_role(Membership.Role.VETERINARIAN)
+
+    def test_operator_detail(self):
+        self.assert_role(Membership.Role.OPERATOR)
+
+    def test_viewer_detail(self):
+        self.assert_role(Membership.Role.VIEWER)
+
+    def test_foreign_tenant_returns_same_404_as_missing(self):
+        foreign = PregnancyService.create(RequestContext(organization=self.other_organization), self.make_payload(
+            animal_id=self.other_animal.pk, breeding_id=self.other_breeding.pk))
+        response = self.detail(foreign.pk)
+        self.assertEqual(response.status_code, 404)
+        missing = self.detail(uuid4())
+        self.assertEqual(response.json(), missing.json())
+
+    def test_missing_returns_404(self):
+        self.assertEqual(self.detail(uuid4()).status_code, 404)
+
+    def test_soft_deleted_returns_404(self):
+        self.pregnancy.delete()
+        self.assertEqual(self.detail().status_code, 404)
+
+    def test_exact_response_schema_and_relation_identities(self):
+        response = self.detail()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {
+            "id": str(self.pregnancy.pk), "animal_id": str(self.animal.pk), "breeding_id": str(self.breeding.pk),
+            "diagnosis_date": "2025-02-01", "expected_birth": "2025-10-01", "confirmed": True,
+            "notes": "Pregnancy characterization test", "status": "ACTIVE"})
+
+    def test_inactive_relations_remain_readable(self):
+        self.animal.delete()
+        self.breeding.delete()
+        self.assertEqual(self.detail().status_code, 200)
+        self.assertEqual(self.detail().json()["breeding_id"], str(self.breeding.pk))
+
+    def test_malformed_uuid_returns_422(self):
+        self.assertEqual(self.detail("invalid").status_code, 422)
+
+    def test_missing_auth_returns_401(self):
+        self.assertEqual(self.client.get(f"/api/pregnancies/{self.pregnancy.pk}").status_code, 401)
+
+
+class PregnancyBusinessDateTests(PregnancyTestBase):
+    def setUp(self):
+        self.context = RequestContext(organization=self.organization)
+
+    def at(self, value):
+        return patch("apps.common.temporal.timezone.now", return_value=datetime.fromisoformat(value).astimezone(datetime_timezone.utc))
+
+    def test_mexico_allows_diagnosis_on_business_today_after_utc_midnight(self):
+        with self.at("2026-10-06T00:30:00+00:00"):
+            self.assertEqual(get_business_today(self.context), date(2026, 10, 5))
+            pregnancy = PregnancyService.create(self.context, self.make_payload(
+                diagnosis_date=date(2026, 10, 5), expected_birth=date(2027, 1, 1)))
+        self.assertEqual(pregnancy.diagnosis_date, date(2026, 10, 5))
+
+    def test_mexico_rejects_utc_day_that_is_future_for_tenant(self):
+        with self.at("2026-10-06T00:30:00+00:00"):
+            with self.assertRaisesMessage(PregnancyValidationError, "La fecha de diagnóstico no puede ser futura."):
+                PregnancyService.create(self.context, self.make_payload(
+                    diagnosis_date=date(2026, 10, 6), expected_birth=date(2027, 1, 1)))
+        self.assertFalse(Pregnancy._base_manager.exists())
+
+    def test_before_mexico_midnight_rejects_next_diagnosis_day(self):
+        with self.at("2026-10-06T05:59:59+00:00"):
+            self.assertEqual(get_business_today(self.context), date(2026, 10, 5))
+            with self.assertRaises(PregnancyValidationError):
+                PregnancyService.create(self.context, self.make_payload(
+                    diagnosis_date=date(2026, 10, 6), expected_birth=date(2027, 1, 1)))
+
+    def test_at_mexico_midnight_allows_new_diagnosis_day(self):
+        with self.at("2026-10-06T06:00:00+00:00"):
+            self.assertEqual(get_business_today(self.context), date(2026, 10, 6))
+            pregnancy = PregnancyService.create(self.context, self.make_payload(
+                diagnosis_date=date(2026, 10, 6), expected_birth=date(2027, 1, 1)))
+        self.assertEqual(pregnancy.diagnosis_date, date(2026, 10, 6))
+
+    def test_utc_organization_uses_its_own_business_date(self):
+        self.organization.timezone = "UTC"
+        with self.at("2026-10-06T00:30:00+00:00"):
+            self.assertEqual(get_business_today(self.context), date(2026, 10, 6))
+            PregnancyService.create(self.context, self.make_payload(
+                diagnosis_date=date(2026, 10, 6), expected_birth=date(2027, 1, 1)))
+
+    def test_invalid_organization_timezone_fails_closed(self):
+        self.organization.timezone = "Invalid/Zone"
+        with self.at("2026-10-06T00:30:00+00:00"):
+            with self.assertRaises(TenantTimezoneUnavailable):
+                PregnancyService.create(self.context, self.make_payload())
+        self.assertFalse(Pregnancy._base_manager.exists())
+
+    def test_before_utc_midnight_keeps_mexico_business_day(self):
+        with self.at("2026-10-05T23:59:59+00:00"):
+            self.assertEqual(get_business_today(self.context), date(2026, 10, 5))
+            PregnancyService.create(self.context, self.make_payload(
+                diagnosis_date=date(2026, 10, 5), expected_birth=date(2027, 1, 1)))
+
+    def test_read_is_allowed_for_every_membership_role(self):
+        user = User.objects.create_user(email="pregnancy-read-roles@example.com")
+        membership = Membership.objects.create(user=user, organization=self.organization,
+            role=Membership.Role.VIEWER, is_default=True)
+        with self.at("2026-10-06T00:30:00+00:00"):
+            pregnancy = PregnancyService.create(self.context, self.make_payload())
+        for role in Membership.Role.values:
+            with self.subTest(role=role):
+                membership.role = role
+                membership.save(update_fields=["role"])
+                headers = {"HTTP_AUTHORIZATION": f"Bearer {create_access_token(user)}"}
+                response = self.client.get(f"/api/pregnancies/animal/{self.animal.pk}/history", **headers)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()[0]["id"], str(pregnancy.pk))
+
+    def test_create_writer_roles_and_viewer_denial_preserve_contract(self):
+        user = User.objects.create_user(email="pregnancy-create-roles@example.com")
+        membership = Membership.objects.create(user=user, organization=self.organization,
+            role=Membership.Role.VIEWER, is_default=True)
+        for role in Membership.Role.values:
+            with self.subTest(role=role):
+                membership.role = role
+                membership.save(update_fields=["role"])
+                animal = self.make_animal(self.organization, self.female, f"PREG_ROLE_{role}")
+                breeding = self.make_breeding(self.organization, animal, date(2025, 1, 1))
+                payload = self.make_payload(animal_id=animal.pk, breeding_id=breeding.pk)
+                before = Pregnancy._base_manager.count()
+                with self.at("2026-10-06T00:30:00+00:00"):
+                    response = self.client.post("/api/pregnancies/", data=payload.model_dump_json(),
+                        content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {create_access_token(user)}")
+                self.assertEqual(response.status_code, 403 if role == Membership.Role.VIEWER else 200)
+                self.assertEqual(Pregnancy._base_manager.count(), before + (role != Membership.Role.VIEWER))
+
+
 class PregnancyActiveIntegrityTests(PregnancyTestBase):
     def setUp(self):
         self.context = RequestContext(organization=self.organization)
@@ -256,7 +507,7 @@ class PregnancyServiceValidationTests(PregnancyTestBase):
         self.context = RequestContext(organization=self.organization)
         self.today = date(2025, 3, 1)
         clock = patch(
-            "apps.pregnancy.services.pregnancy_service.timezone.localdate",
+            "apps.pregnancy.services.pregnancy_service.get_business_today",
             return_value=self.today,
         )
         clock.start()

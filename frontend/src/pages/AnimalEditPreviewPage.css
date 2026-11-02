@@ -1,0 +1,77 @@
+.animal-edit-preview { --preview-ink: #10223e; --preview-muted: #526582; display: flex; flex-direction: column; min-width: 0; color: var(--preview-ink); background: #fff; border: 1px solid #e1e8ef; border-radius: 16px; box-shadow: 0 12px 40px #102a4310; }
+.animal-edit-preview__header { display: flex; align-items: center; gap: 18px; padding: 24px 28px 20px; }
+.animal-preview-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 46px; height: 46px; border-radius: 10px; color: #047857; background: #e1fbef; }
+.animal-edit-preview__pencil { width: 56px; height: 56px; border-radius: 12px; }
+.animal-edit-preview__pencil svg { width: 32px; height: 32px; }
+.animal-edit-preview__heading { min-width: 0; flex: 1; }
+.animal-edit-preview__heading > div { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.animal-edit-preview h1 { margin: 0; font-size: clamp(1.4rem, 2.6vw, 1.8rem); line-height: 1.25; letter-spacing: -.5px; }
+.animal-edit-preview__heading > p { margin: 6px 0 0; color: var(--preview-muted); font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
+.animal-edit-preview__badge { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border: 1px solid #f6ce80; border-radius: 9px; background: #fff0ce; color: #855000; font-size: .8125rem; font-weight: 600; }
+.animal-edit-preview__badge svg { width: 16px; height: 16px; }
+.animal-edit-preview__close { align-self: flex-start; display: grid; place-items: center; width: 44px; height: 44px; color: var(--preview-ink); font-size: 28px; text-decoration: none; border-radius: 8px; }
+.animal-edit-preview__close:hover { background: #f1f5f9; }
+.animal-edit-preview > form { padding: 0 20px 20px; }
+.animal-edit-preview__fields { min-width: 0; margin: 0; padding: 0; border: 0; }
+.animal-preview-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.animal-preview-layout { display: grid; grid-template-columns: minmax(0, 73fr) minmax(240px, 27fr); gap: 16px; align-items: start; }
+.animal-preview-layout__main, .animal-preview-layout__aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.animal-preview-card { padding: 18px; border: 1px solid #dfe7ef; border-radius: 11px; background: #fff; min-width: 0; }
+.animal-preview-card > header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.animal-preview-card h2 { margin: 0; color: var(--preview-ink); font-size: 1.125rem; font-weight: 700; letter-spacing: -.3px; line-height: 1.4; }
+.animal-preview-card header p { margin: 3px 0 0; color: var(--preview-muted); font-size: .875rem; line-height: 1.5; }
+.animal-preview-card__fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+.animal-preview-card__fields > div { min-width: 0; }
+.animal-preview-card__fields--wide { grid-template-columns: minmax(0, 1fr); }
+.animal-preview-card label { display: block; margin-bottom: 7px; font-size: .8125rem; color: var(--preview-ink); line-height: 1.5; }
+.animal-preview-card :where(input, select, textarea) { display: block; width: 100%; min-height: 39px; padding: 9px 12px; border: 1px solid #d4dfeb; border-radius: 7px; background: linear-gradient(110deg, #f3f6f9, #edf2f6); color: #354966; opacity: 1; -webkit-text-fill-color: #354966; font-size: .875rem; }
+.animal-preview-card textarea { min-height: 85px; resize: vertical; }
+.animal-preview-layout__aside .animal-preview-card { padding: 16px; }
+.animal-preview-layout__aside .animal-preview-card > header { margin-bottom: 14px; gap: 10px; }
+.animal-preview-layout__aside h2 { font-size: .9375rem; }
+.animal-preview-layout__aside .animal-preview-icon { width: 34px; height: 34px; border-radius: 7px; }
+.animal-preview-photo { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 200px; padding: 22px 14px; border: 1px solid #e4ebf2; border-radius: 9px; background: linear-gradient(120deg, #f6f9fb, #f0f4f8); text-align: center; }
+.animal-preview-photo > span { display: grid; place-items: center; width: 80px; height: 80px; margin-bottom: 2px; border-radius: 10px; background: #e4ebf2; color: #8ba2b7; }
+.animal-preview-photo svg { width: 52px; height: 52px; }
+.animal-preview-photo strong { font-size: .8125rem; font-weight: 500; }
+.animal-preview-photo p, .animal-preview-state p { margin: 0; font-size: .8125rem; color: var(--preview-muted); line-height: 1.6; }
+.animal-preview-state { display: flex; gap: 14px; align-items: flex-start; }
+.animal-preview-state > div { min-width: 0; }
+.animal-preview-state strong { display: inline-block; margin: 8px 0; padding: 4px 15px; border-radius: 10px; background: #dcfced; color: #065f46; font-size: .8125rem; font-weight: 600; }
+.animal-preview-location { background: linear-gradient(110deg, #eafcf4, #f0fcf7); border-color: #ddf6ea; }
+.animal-preview-card dl { margin: 0; display: flex; flex-direction: column; gap: 16px; }
+.animal-preview-card dl > div { display: grid; grid-template-columns: minmax(70px, .7fr) minmax(0, 1.3fr); gap: 12px; align-items: start; font-size: .8125rem; line-height: 1.6; }
+.animal-preview-card dt { color: var(--preview-muted); }
+.animal-preview-card dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.animal-preview-location dd { padding: 7px 10px; border: 1px solid #d4dfeb; border-radius: 7px; background: #f1f5f9; color: #526582; }
+.animal-edit-preview__footer { position: sticky; bottom: 0; z-index: 3; display: flex; align-items: center; gap: 20px; justify-content: space-between; padding: 12px 20px; border-top: 1px solid #e1e8ef; border-radius: 0 0 16px 16px; background: #fffffffa; }
+.animal-edit-preview__notice { display: flex; align-items: flex-start; gap: 14px; flex: 1; padding: 12px 16px; border: 1px solid #d5e7ff; border-radius: 10px; background: #eff6ff; }
+.animal-edit-preview__notice > span { display: grid; place-items: center; flex-shrink: 0; width: 25px; height: 25px; border-radius: 50%; color: #fff; background: #2574d5; font-weight: 700; }
+.animal-edit-preview__notice strong { font-size: .8125rem; font-weight: 600; }
+.animal-edit-preview__notice p { margin: 3px 0 0; color: #435d83; font-size: .75rem; line-height: 1.5; }
+.animal-edit-preview__actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+.animal-edit-preview__actions a, .animal-edit-preview__actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 10px 16px; border: 1px solid #8293aa; border-radius: 8px; color: #213c60; background: #fff; text-decoration: none; font-size: .8125rem; }
+.animal-edit-preview__actions button:disabled { border-color: #e2e7ee; background: #e9edf2; color: #64748b; cursor: not-allowed; }
+.animal-edit-preview a:focus-visible, .animal-edit-preview button:focus-visible { outline: 3px solid #047857; outline-offset: 3px; }
+@media (max-width: 1200px) {
+  .animal-preview-card__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .animal-preview-card__fields--wide { grid-template-columns: minmax(0, 1fr); }
+  .animal-edit-preview__footer { align-items: stretch; flex-direction: column; gap: 10px; }
+  .animal-edit-preview__actions { justify-content: flex-end; }
+}
+@media (max-width: 800px) {
+  .animal-preview-layout { grid-template-columns: minmax(0, 1fr); }
+  .animal-preview-layout__aside { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
+@media (max-width: 600px) {
+  .animal-edit-preview__header { padding: 18px 14px; gap: 10px; align-items: flex-start; }
+  .animal-edit-preview__pencil { width: 42px; height: 42px; }
+  .animal-edit-preview__heading > div { gap: 8px; }
+  .animal-edit-preview__badge { padding: 5px 7px; font-size: .75rem; }
+  .animal-edit-preview > form { padding: 0 10px 16px; }
+  .animal-preview-layout__aside, .animal-preview-card__fields { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .animal-preview-card { padding: 15px; }
+  .animal-edit-preview__footer { position: static; padding: 12px; }
+  .animal-edit-preview__actions { flex-wrap: wrap; }
+  .animal-edit-preview__actions a, .animal-edit-preview__actions button { flex: 1; }
+}

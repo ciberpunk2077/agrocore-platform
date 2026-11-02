@@ -5,8 +5,8 @@ export function deleteLot(lotId: string, accessToken: string): Promise<{ success
   return apiRequest(`/lots/${encodeURIComponent(lotId)}`, { method: 'DELETE', accessToken })
 }
 
-export function getLots(accessToken: string): Promise<Lot[]> {
-  return apiRequest<Lot[]>('/lots/', { accessToken })
+export function getLots(accessToken: string, signal?: AbortSignal): Promise<Lot[]> {
+  return apiRequest<Lot[]>('/lots/', { accessToken, signal })
 }
 
 export function getLot(lotId: string, accessToken: string): Promise<Lot> {

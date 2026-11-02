@@ -18,6 +18,20 @@ export interface LoginResponse {
 
 export type MembershipRole = 'OWNER' | 'ADMIN' | 'VETERINARIAN' | 'OPERATOR' | 'VIEWER'
 
+export interface BusinessTime {
+  effective_timezone: string
+  business_today: string
+  server_now: string
+  valid_until: string
+}
+
+export interface BusinessTimeLease {
+  snapshot: BusinessTime
+  receivedMonotonic: number
+  receivedWall: number
+  remainingMs: number
+}
+
 export interface CurrentContext {
   user: string
   current_user: User
@@ -26,4 +40,9 @@ export interface CurrentContext {
   role: MembershipRole | null
   can_read: boolean
   can_write: boolean
+  business_time: BusinessTime | null
+}
+
+export interface ResolvedCurrentContext extends CurrentContext {
+  businessTimeLease: BusinessTimeLease | null
 }

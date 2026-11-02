@@ -52,6 +52,37 @@
     overflow-wrap: anywhere;
 }
 
+.birth-history__detail {
+    grid-column: 1 / -1;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 12px;
+}
+
+.birth-history__detail summary {
+    cursor: pointer;
+    color: #047857;
+}
+
+.birth-history__detail button {
+    margin-top: 12px;
+}
+
+.birth-history__detail dl {
+    display: grid;
+    grid-template-columns: minmax(100px, 1fr) minmax(0, 3fr);
+    gap: 8px 16px;
+}
+
+.birth-history__detail dt {
+    color: #64748b;
+}
+
+.birth-history__detail dd {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
 @media (max-width: 700px) {
     .birth-history__item {
         grid-template-columns: 1fr;

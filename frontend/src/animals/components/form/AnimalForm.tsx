@@ -1,4 +1,5 @@
 import FieldError from '../../../components/FieldError'
+import AnimalPreviewFields from './AnimalPreviewFields'
 import { fieldErrorAttributes, normalizeApiError } from '../../../lib/api-errors'
 import {
   type FormEvent,
@@ -7,6 +8,7 @@ import {
   useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { animalParentLabel } from '../../animal-detail'
 
 import { getSession } from '../../../auth/session'
 import {
@@ -32,9 +34,11 @@ import type {
 
 interface AnimalFormProps {
   animal?: Animal
+  readOnly?: boolean
+  organizationName?: string
 }
 
-function AnimalForm({ animal }: AnimalFormProps) {
+function AnimalForm({ animal, readOnly = false, organizationName }: AnimalFormProps) {
   const navigate = useNavigate()
 
   const [species, setSpecies] = useState<Species[]>([])
@@ -69,12 +73,13 @@ function AnimalForm({ animal }: AnimalFormProps) {
   const [fatherId, setFatherId] = useState(animal?.father_id ?? '')
 
   const [notes, setNotes] = useState(animal?.notes ?? '')
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!readOnly)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
+    if (readOnly) return
     let isActive = true
 
     async function loadOptions() {
@@ -133,7 +138,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
     return () => {
       isActive = false
     }
-  }, [])
+  }, [readOnly])
 
   const filteredBreeds = useMemo(
     () => breeds.filter((breed) => breed.species_id === speciesId),
@@ -170,6 +175,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (readOnly || (typeof __AGROCORE_DEMO__ !== 'undefined' && __AGROCORE_DEMO__)) return
     setFieldErrors({})
 
     const session = getSession()
@@ -234,11 +240,11 @@ function AnimalForm({ animal }: AnimalFormProps) {
     return <p>{error}</p>
   }
 
-  return (
-    <form onSubmit={handleSubmit}>
+  const fields = <>
       <div>
         <label htmlFor="internalId">ID interno</label>
         <input
+          placeholder={readOnly ? 'Sin datos' : undefined}
           id="internalId" {...fieldErrorAttributes(fieldErrors, 'internal_id', 'internalId')}
           type="text"
           value={internalId}
@@ -251,6 +257,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
       <div>
         <label htmlFor="name">Nombre</label>
         <input
+          placeholder={readOnly ? 'Sin datos' : undefined}
           id="name" {...fieldErrorAttributes(fieldErrors, 'name', 'name')}
           type="text"
           value={name}
@@ -262,6 +269,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
       <div>
         <label htmlFor="officialTag">Arete oficial</label>
         <input
+          placeholder={readOnly ? 'Sin datos' : undefined}
           id="officialTag" {...fieldErrorAttributes(fieldErrors, 'official_tag', 'officialTag')}
           type="text"
           value={officialTag}
@@ -273,6 +281,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
       <div>
         <label htmlFor="electronicTag">Arete electrónico</label>
         <input
+          placeholder={readOnly ? 'Sin datos' : undefined}
           id="electronicTag" {...fieldErrorAttributes(fieldErrors, 'electronic_tag', 'electronicTag')}
           type="text"
           value={electronicTag}
@@ -293,6 +302,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
           required
         >
           <option value="">Selecciona una especie</option>
+          {readOnly && animal && <option value={animal.species_id}>{animal.species || 'Sin datos'}</option>}
           {species.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
@@ -312,6 +322,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
           required
         >
           <option value="">Selecciona una raza</option>
+          {readOnly && animal && <option value={animal.breed_id}>{animal.breed || 'Sin datos'}</option>}
           {filteredBreeds.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
@@ -330,6 +341,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
           required
         >
           <option value="">Selecciona el sexo</option>
+          {readOnly && animal && <option value={animal.gender_id}>{animal.gender || 'Sin datos'}</option>}
           {genders.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
@@ -348,6 +360,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
           required
         >
           <option value="">Selecciona un estado</option>
+          {readOnly && animal && <option value={animal.status_id}>{animal.status || 'Sin datos'}</option>}
           {statuses.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
@@ -369,6 +382,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
           required={!animal}
         >
           <option value="">{animal ? 'Sin ubicación' : 'Selecciona una finca'}</option>
+          {readOnly && animal?.farm_id && <option value={animal.farm_id}>{animal.farm || 'Sin datos'}</option>}
           {farms.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
@@ -387,7 +401,8 @@ function AnimalForm({ animal }: AnimalFormProps) {
           disabled={!farmId}
           required={!animal || Boolean(farmId)}
         >
-          <option value="">Selecciona un lote</option>
+          <option value="">{readOnly ? 'Sin ubicación' : 'Selecciona un lote'}</option>
+          {readOnly && animal?.lot_id && <option value={animal.lot_id}>{animal.lot || 'Sin datos'}</option>}
           {filteredLots.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
@@ -400,6 +415,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
       <div>
         <label htmlFor="birthDate">Fecha de nacimiento</label>
         <input
+          placeholder={readOnly ? 'Sin datos' : undefined}
           id="birthDate" {...fieldErrorAttributes(fieldErrors, 'birth_date', 'birthDate')}
           type="date"
           value={birthDate}
@@ -411,6 +427,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
       <div>
         <label htmlFor="birthWeight">Peso al nacer (kg)</label>
         <input
+          placeholder={readOnly ? 'Sin datos' : undefined}
           id="birthWeight" {...fieldErrorAttributes(fieldErrors, 'birth_weight', 'birthWeight')}
           type="number"
           min="0"
@@ -429,7 +446,8 @@ function AnimalForm({ animal }: AnimalFormProps) {
           onChange={(event) => setMotherId(event.target.value)}
         >
           <option value="">Sin madre registrada</option>
-          {historicalMother && <option value={motherId} disabled>
+          {readOnly && animal?.mother_id && <option value={animal.mother_id}>{animalParentLabel(animal.mother_id, animal.mother_reference)}</option>}
+          {!readOnly && historicalMother && <option value={motherId} disabled>
             Referencia histórica · {motherId}
           </option>}
           {possibleMothers.map((animal) => (
@@ -449,7 +467,8 @@ function AnimalForm({ animal }: AnimalFormProps) {
           onChange={(event) => setFatherId(event.target.value)}
         >
           <option value="">Sin padre registrado</option>
-          {historicalFather && <option value={fatherId} disabled>
+          {readOnly && animal?.father_id && <option value={animal.father_id}>{animalParentLabel(animal.father_id, animal.father_reference)}</option>}
+          {!readOnly && historicalFather && <option value={fatherId} disabled>
             Referencia histórica · {fatherId}
           </option>}
           {possibleFathers.map((animal) => (
@@ -464,6 +483,7 @@ function AnimalForm({ animal }: AnimalFormProps) {
       <div>
         <label htmlFor="notes">Notas</label>
         <textarea
+          placeholder={readOnly ? 'Sin datos' : undefined}
           id="notes" {...fieldErrorAttributes(fieldErrors, 'notes', 'notes')}
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
@@ -473,9 +493,17 @@ function AnimalForm({ animal }: AnimalFormProps) {
 
       {error ? <p role="alert">{error}</p> : null}
 
-      <button type="submit" disabled={isSubmitting}>
+  </>
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <fieldset disabled={readOnly} className={readOnly ? 'animal-edit-preview__fields' : undefined} style={readOnly ? undefined : { border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+      {readOnly && <legend className="animal-preview-sr">Datos actuales del animal; campos deshabilitados</legend>}
+      {readOnly && animal ? <AnimalPreviewFields animal={animal} organizationName={organizationName}>{fields}</AnimalPreviewFields> : fields}
+      {!readOnly && <button type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Guardando...' : animal ? 'Guardar cambios' : 'Guardar animal'}
-      </button>
+      </button>}
+      </fieldset>
     </form>
   )
 }

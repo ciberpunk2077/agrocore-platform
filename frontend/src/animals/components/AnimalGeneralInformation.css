@@ -1,0 +1,32 @@
+.animal-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 24px; background: #f8faf9; border-radius: 0 0 12px 12px; }
+.animal-overview__block { min-width: 0; padding: 24px; background: #fff; border: 1px solid #dfe9e4; border-radius: 16px; box-shadow: 0 3px 12px #123f2810; }
+.animal-overview__identity { grid-column: 1 / -1; }
+.animal-overview__block-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.animal-overview__icon { display: inline-flex; flex-shrink: 0; padding: 12px; border: 1px solid #c7ecda; border-radius: 13px; color: #047857; background: #ecfdf5; }
+.animal-overview__block-heading h3 { margin: 0 0 4px; font-size: 1rem; line-height: 1.4; color: #12372a; }
+.animal-overview__block-heading p { margin: 0; color: #52675d; font-size: .8125rem; line-height: 1.5; }
+.animal-overview__identity .animal-overview__block-content { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: stretch; gap: 24px; }
+.animal-overview__illustration { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 18px; min-height: 180px; padding: 20px 12px; border-radius: 14px; border: 1px solid #d4eade; background: radial-gradient(ellipse at top, #e2f7eb, #f5faf7 75%); color: #047857; text-align: center; }
+.animal-overview__illustration svg { width: 76px; height: 76px; stroke-width: 1.2; }
+.animal-overview__illustration span { font-size: .75rem; line-height: 1.5; color: #52675d; }
+.animal-overview__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 12px; margin: 0; }
+.animal-overview__identity .animal-overview__fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.animal-overview__field { min-width: 0; padding: 15px 16px; border-radius: 10px; border: 1px solid #edf2ef; background: #f8fbf9; }
+.animal-overview__field dt { margin-bottom: 8px; color: #52675d; font-size: .75rem; font-weight: 550; line-height: 1.5; }
+.animal-overview__field dd { margin: 0; color: #163c2c; font-size: .9375rem; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
+.animal-overview__field .animal-overview__empty { color: #64736c; font-weight: 400; }
+.animal-overview__notes .animal-overview__fields { grid-template-columns: minmax(0, 1fr); }
+.animal-overview__notes dd { font-weight: 400; }
+@media (max-width: 1100px) {
+  .animal-overview__identity .animal-overview__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .animal-overview { grid-template-columns: minmax(0, 1fr); padding: 16px; gap: 16px; }
+  .animal-overview__block { padding: 18px; }
+  .animal-overview__identity .animal-overview__block-content { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .animal-overview__illustration { flex-direction: row; min-height: 100px; gap: 16px; }
+  .animal-overview__illustration svg { width: 52px; height: 52px; flex-shrink: 0; }
+}
+@media (max-width: 440px) {
+  .animal-overview__fields, .animal-overview__identity .animal-overview__fields { grid-template-columns: minmax(0, 1fr); }
+}

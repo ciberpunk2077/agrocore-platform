@@ -8,6 +8,7 @@ import { normalizeApiError } from '../../lib/api-errors'
 import { getAnimalProductionHistory, getProductionTypes } from '../production.service'
 import type { ProductionRecord, ProductionType } from '../types'
 import './ProductionHistory.css'
+import ProductionCharts from '../../animals/components/ProductionCharts'
 
 type State =
   | { status: 'loading' }
@@ -73,6 +74,11 @@ function LoadedHistory({ animalId, saved, onRetry, onUpdated, onDeleted }: {
           : normalizeApiError(history.reason, 'No fue posible cargar el historial de producción.').message })
         return
       }
+      if (!Array.isArray(history.value) || history.value.some(record => !record || record.animal_id !== animalId
+        || typeof record.recorded_at !== 'string' || typeof record.quantity !== 'string' || typeof record.unit !== 'string' || typeof record.notes !== 'string')) {
+        setState({ status: 'error', message: 'Los registros de producción no corresponden al animal solicitado.' })
+        return
+      }
       setState({ status: 'data', history: history.value,
         types: types.status === 'fulfilled' ? types.value : [],
         catalogError: types.status === 'rejected'
@@ -95,15 +101,16 @@ function LoadedHistory({ animalId, saved, onRetry, onUpdated, onDeleted }: {
     {state.catalogError && <div><p role="alert">{state.catalogError} Los registros conservan su cantidad y unidad almacenada.</p><button type="button" disabled={deleting !== null} onClick={onRetry}>Reintentar consulta</button></div>}
     {state.history.length === 0 ? <p>Este animal todavía no tiene registros de producción.</p> : <>
       <p>Fechas y horas en UTC.</p>
+      <ProductionCharts records={state.history} types={state.types} />
       <div className="production-history__table-wrapper">
-        <table>
+        <table className="expedient-records" role="table">
           <caption>Historial de producción del animal</caption>
           <thead><tr><th scope="col">Fecha/hora (UTC)</th><th scope="col">Tipo de producción</th><th scope="col">Cantidad</th><th scope="col">Unidad</th><th scope="col">Notas</th><WriteOnly><th scope="col">Acciones</th></WriteOnly></tr></thead>
-          <tbody>{state.history.map((record) => <tr key={record.id}>
-            <td><time dateTime={record.recorded_at} title={record.recorded_at}>{formatTimestamp(record.recorded_at)}</time></td>
-            <td>{typeNames.get(record.production_type_id) ?? 'Tipo no disponible'}</td>
-            <td>{record.quantity}</td><td>{record.unit}</td><td className="production-history__notes">{record.notes.trim() || '—'}</td>
-            <WriteOnly><td><button type="button" disabled={actionsDisabled} onClick={() => {
+          <tbody role="rowgroup">{[...state.history].sort((a, b) => Date.parse(b.recorded_at) - Date.parse(a.recorded_at)).map((record) => <tr role="row" key={record.id}>
+            <td data-label="Fecha/hora (UTC)" role="cell"><time dateTime={record.recorded_at} title={record.recorded_at}>{formatTimestamp(record.recorded_at)}</time></td>
+            <td data-label="Tipo de producción" role="cell">{typeNames.get(record.production_type_id) ?? 'Tipo no disponible'}</td>
+            <td data-label="Cantidad" role="cell">{record.quantity}</td><td data-label="Unidad" role="cell">{record.unit}</td><td data-label="Notas" role="cell" className="production-history__notes">{record.notes.trim() || '—'}</td>
+            <WriteOnly><td data-label="Acciones" role="cell"><button type="button" disabled={actionsDisabled} onClick={() => {
               if (actionsDisabled) return
               setEditing(record)
             }}>Editar</button>

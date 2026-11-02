@@ -1,4 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
+import { recordDetail, dateLabel, textLabel } from '../../reproduction/RecordDetail'
+import { useCallback } from 'react'
+import './AnimalMovementDetail.css'
 import type { Animal, Farm, Lot } from '../../animals/types'
 import { getSession, getSessionRevision } from '../../auth/session'
 import { ApiError } from '../../lib/api'
@@ -15,6 +18,12 @@ export default function AnimalMovementDetail({ movementId, animalId, revision, o
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retry, setRetry] = useState(0)
+  const headingRef = useCallback((node: HTMLHeadingElement | null) => {
+    if (!node) return
+    node.focus({ preventScroll: true })
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true
+    node.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' })
+  }, [])
   useEffect(() => {
     const controller = new AbortController()
     const current = () => !controller.signal.aborted && revision === getSessionRevision()
@@ -32,20 +41,29 @@ export default function AnimalMovementDetail({ movementId, animalId, revision, o
     void load()
     return () => controller.abort()
   }, [movementId, animalId, revision, organizationId, retry])
-  const name = (id: string | null, options: { id: string; name: string }[]) => id === null ? 'Sin registro' : options.find(o => o.id === id)?.name ?? id
-  return <section aria-label="Detalle del movimiento">
-    <h3>Detalle del movimiento</h3>
-    {loading && <p role="status">Cargando detalle...</p>}
-    {error && <div><p role="alert">{error}</p><button type="button" onClick={() => setRetry(v => v + 1)}>Reintentar detalle</button></div>}
-    {record && <dl>
-      <dt>ID</dt><dd>{record.id}</dd><dt>Fecha</dt><dd>{record.date}</dd>
-      <dt>Tipo</dt><dd>{name(record.movement_type_id, types)}</dd>
-      <dt>Finca origen</dt><dd>{name(record.origin_farm_id, farms)}</dd><dt>Lote origen</dt><dd>{name(record.origin_lot_id, lots)}</dd>
-      <dt>Finca destino</dt><dd>{name(record.destination_farm_id, farms)}</dd><dt>Lote destino</dt><dd>{name(record.destination_lot_id, lots)}</dd>
-      <dt>Motivo</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{record.reason ?? 'Sin motivo'}</dd>
-      <dt>Notas</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{record.notes ?? 'Sin notas'}</dd>
-      <dt>Status anterior (snapshot)</dt><dd>{record.origin_status_id === null ? 'Sin snapshot' : record.origin_status_id === animal.status_id ? `${animal.status} (${record.origin_status_id})` : record.origin_status_id}</dd>
-    </dl>}
-    <button type="button" onClick={onClose}>Volver</button>
-  </section>
+  const name = (id: string | null, options: { id: string; name: string }[]) =>
+    id === null ? 'Sin datos' : options.find(option => option.id === id)?.name ?? 'Nombre no disponible · referencia registrada'
+  const location = (farmId: string | null, lotId: string | null) => <span className="movement-detail__location">
+    <span><span aria-hidden="true">⌂ </span>Finca<strong>{name(farmId, farms)}</strong></span>
+    <span><span aria-hidden="true">▧ </span>Lote<strong>{name(lotId, lots)}</strong></span>
+  </span>
+  const technical = record && <details className="movement-detail__technical"><summary>Ver referencias técnicas</summary><dl>
+    {Object.entries({ 'Movimiento': record.id, 'Tipo': record.movement_type_id,
+      'Finca origen': record.origin_farm_id, 'Lote origen': record.origin_lot_id,
+      'Finca destino': record.destination_farm_id, 'Lote destino': record.destination_lot_id,
+      'Estado anterior': record.origin_status_id }).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? 'Sin datos'}</dd></div>)}
+  </dl></details>
+  return recordDetail({ kind: 'movement', id: movementId, title: record ? `Movimiento · ${name(record.movement_type_id, types)}` : 'Detalle del movimiento', date: record?.date,
+    loading: loading ? 'Cargando detalle...' : undefined, error: error ?? undefined,
+    fields: record ? [
+      { label: 'Fecha del movimiento', value: <time dateTime={record.date}>{dateLabel(record.date)}</time> },
+      { label: 'Tipo de movimiento', value: name(record.movement_type_id, types) },
+      { label: 'Origen', value: location(record.origin_farm_id, record.origin_lot_id) },
+      { label: 'Destino', value: location(record.destination_farm_id, record.destination_lot_id) },
+      { label: 'Motivo', value: textLabel(record.reason) },
+      { label: 'Estado anterior (snapshot)', value: record.origin_status_id === null ? 'Sin snapshot' :
+        record.origin_status_id === animal.status_id ? textLabel(animal.status) : 'Información no disponible · referencia registrada' },
+      { label: 'Referencias del registro', value: technical },
+    ] : [], notes: record?.notes, onClose, onRetry: () => setRetry(value => value + 1), headingRef,
+  })
 }

@@ -156,3 +156,39 @@ class OrganizationAccessIntegrationTests(TestCase):
 
     def test_invalid_uuid_is_rejected_by_ninja(self):
         self.assertEqual(self.get("/api/organizations/not-a-uuid").status_code, 422)
+
+
+class OrganizationTimezoneTests(TestCase):
+    def test_default_and_valid_service_creation(self):
+        from apps.organizations.services import create_organization
+        organization = create_organization(code="TZ_DEFAULT", name="Timezone default")
+        self.assertEqual(organization.timezone, "America/Mexico_City")
+        organization = create_organization(code="TZ_UTC", name="Timezone UTC", timezone="UTC")
+        self.assertEqual(organization.timezone, "UTC")
+
+    def test_invalid_service_creation_and_update_do_not_persist(self):
+        from django.core.exceptions import ValidationError
+        from apps.organizations.services import create_organization, update_organization
+        organization = create_organization(code="TZ_UPDATE", name="Timezone update")
+        for value in ("", None, " UTC", "UTC ", "UTC-6", "invalid", "x" * 65):
+            with self.subTest(value=value):
+                before = Organization.objects.count()
+                with self.assertRaises(ValidationError):
+                    create_organization(code="TZ_BAD", name="Invalid timezone", timezone=value)
+                self.assertEqual(Organization.objects.count(), before)
+                with self.assertRaises(ValidationError):
+                    update_organization(organization, timezone=value, name="Should not change")
+                organization.refresh_from_db()
+                self.assertEqual(organization.name, "Timezone update")
+                self.assertEqual(organization.timezone, "America/Mexico_City")
+
+    def test_admin_exposes_validated_timezone(self):
+        from django.contrib import admin
+        from django.core.exceptions import ValidationError
+        registered = admin.site._registry[Organization]
+        fields = [field for _, group in registered.fieldsets for field in group["fields"]]
+        self.assertIn("timezone", fields)
+        organization = Organization(code="TZ_MODEL", name="Timezone model", timezone="invalid")
+        with self.assertRaises(ValidationError) as raised:
+            organization.full_clean()
+        self.assertIn("timezone", raised.exception.message_dict)

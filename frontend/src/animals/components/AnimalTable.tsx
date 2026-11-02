@@ -1,56 +1,17 @@
-import { Link } from 'react-router-dom'
-
+﻿import { Link } from 'react-router-dom'
 import type { Animal } from '../types'
+import { displayValue, identification } from '../inventory'
+import { AnimalIdentity, AnimalStatusBadge } from './InventoryAnimal'
 
-interface AnimalTableProps {
-  animals: Animal[]
+export default function AnimalTable({ animals }: { animals: Animal[] }) {
+  return <div className="inventory-table-scroll" role="region" aria-label="Tabla de animales; desplazamiento horizontal disponible" tabIndex={0}>
+    <table className="inventory-table"><caption>Inventario de animales · página actual</caption><thead><tr>
+      {['Identificación', 'Especie', 'Raza', 'Sexo', 'Estado', 'Finca', 'Lote', 'Expediente'].map(label => <th scope="col" key={label}>{label}</th>)}
+    </tr></thead><tbody>{animals.map(animal => <tr key={animal.id}>
+      <th scope="row"><AnimalIdentity animal={animal} /></th>
+      <td>{displayValue(animal.species)}</td><td>{displayValue(animal.breed)}</td><td>{displayValue(animal.gender)}</td>
+      <td><AnimalStatusBadge animal={animal} /></td><td>{displayValue(animal.farm)}</td><td>{displayValue(animal.lot)}</td>
+      <td><Link className="inventory-record-link" to={`/animals/${animal.id}`} aria-label={`Ver expediente de ${identification(animal)}`}>Ver expediente <span aria-hidden="true">→</span></Link></td>
+    </tr>)}</tbody></table>
+  </div>
 }
-
-function getAnimalIdentification(animal: Animal): string {
-  return (
-    animal.name?.trim() ||
-    animal.internal_id?.trim() ||
-    animal.official_tag?.trim() ||
-    'Sin identificación'
-  )
-}
-
-function AnimalTable({ animals }: AnimalTableProps) {
-  return (
-    <div className="animal-table-container">
-      <table className="animal-table">
-        <thead>
-          <tr>
-            <th>Identificación</th>
-            <th>Especie</th>
-            <th>Raza</th>
-            <th>Sexo</th>
-            <th>Estado</th>
-            <th>Finca</th>
-            <th>Lote</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {animals.map((animal) => (
-            <tr key={animal.id}>
-              <td>
-                <Link to={`/animals/${animal.id}`}>
-                    {getAnimalIdentification(animal)}
-                </Link>
-               </td>
-              <td>{animal.species}</td>
-              <td>{animal.breed}</td>
-              <td>{animal.gender}</td>
-              <td>{animal.status}</td>
-              <td>{animal.farm?.trim() || '—'}</td>
-              <td>{animal.lot?.trim() || '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-export default AnimalTable

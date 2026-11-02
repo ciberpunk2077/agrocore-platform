@@ -1,0 +1,32 @@
+﻿.dashboard-drilldown { container: dashboard-records / inline-size; display: flex; flex-direction: column; gap: 24px; min-width: 0; color: #163c2c; }
+.dashboard-drilldown h1 { font-size: clamp(1.6rem,3vw,2rem); margin: 8px 0; }
+.dashboard-drilldown header p, .drill-note { color: #52675d; font-size: .875rem; line-height: 1.6; }
+.dashboard-drilldown a, .dashboard-drilldown a:visited { color: #047857; text-underline-offset: 4px; overflow-wrap: anywhere; }
+.dashboard-drilldown .ag-card { background: #fff; border: 1px solid #dfe9e4; border-radius: 16px; box-shadow: 0 4px 16px #123f2808; color: #163c2c; }
+.drill-definition { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.drill-definition p { flex: 1 1 300px; margin: 0; line-height: 1.6; }
+.drill-count, .drill-note { margin: 0; line-height: 1.6; }
+.drill-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; }
+.drill-filters > .ag-field { flex: 1 1 200px; }
+.drill-filters .ag-control { width: 100%; }
+.drill-toolbar, .drill-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.drill-toolbar p, .drill-pagination p { margin: 0; font-size: .875rem; color: #52675d; }
+.drill-toolbar > div, .drill-pagination > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.drill-table-scroll { max-width: 100%; min-width: 0; overflow-x: auto; background: #fff; border: 1px solid #dfe9e4; border-radius: 16px; }
+.drill-table-scroll table { border-collapse: collapse; width: 100%; min-width: 760px; text-align: left; }
+.drill-table-scroll caption { padding: 18px; text-align: left; color: #52675d; }
+.drill-table-scroll th, .drill-table-scroll td { padding: 18px; border-bottom: 1px solid #e5eee9; font-size: .875rem; max-width: 300px; overflow-wrap: anywhere; }
+.drill-table-scroll thead { background: #f5faf7; color: #52675d; }
+.drill-table-scroll tbody tr:hover { background: #f4faf7; }
+.drill-cards { display: grid; grid-template-columns: minmax(0,1fr); list-style: none; padding: 0; margin: 0; gap: 20px; }
+.drill-cards li { min-width: 0; display: flex; }
+.drill-cards .ag-card { width: 100%; display: flex; flex-direction: column; gap: 20px; }
+.drill-cards h2 { margin: 0; font-size: 1.125rem; overflow-wrap: anywhere; }
+.drill-cards dl { margin: 0; display: grid; gap: 16px; }
+.drill-cards dt { font-size: .75rem; color: #52675d; margin-bottom: 5px; }
+.drill-cards dd { margin: 0; overflow-wrap: anywhere; line-height: 1.6; }
+.drill-cards a { margin-top: auto; padding-top: 16px; border-top: 1px solid #e5eee9; }
+.dashboard-drilldown :focus-visible { outline: 3px solid #047857; outline-offset: 4px; }
+.dashboard-drilldown .ag-state { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+@container dashboard-records (min-width: 560px) { .drill-cards { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@container dashboard-records (min-width: 1000px) { .drill-cards { grid-template-columns: repeat(3,minmax(0,1fr)); } }

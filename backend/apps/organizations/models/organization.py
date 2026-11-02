@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.text import slugify
 from apps.common.models import AuditModel
+from apps.common.utils.validators import validate_iana_timezone
 
 
 
@@ -21,6 +22,14 @@ class Organization(AuditModel):
         unique=True,
         db_index=True,
         verbose_name="Código",
+    )
+
+    timezone = models.CharField(
+        max_length=64,
+        default="America/Mexico_City",
+        blank=False,
+        null=False,
+        validators=[validate_iana_timezone],
     )
 
     tax_id = models.CharField(

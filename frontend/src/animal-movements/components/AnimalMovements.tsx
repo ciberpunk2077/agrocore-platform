@@ -347,6 +347,8 @@ export function MovementScope({ animalId, animal, onAnimalUpdated, revision, org
   const lastDate = history.reduce((latest, item) => item.date > latest ? item.date : latest, '')
   return <section className="animal-movements" aria-label="Movimientos">
     <h2>Movimientos</h2>
+    {detailId && <AnimalMovementDetail key={detailId} movementId={detailId} animalId={animalId} revision={revision} organizationId={organizationId}
+      types={catalogs?.types ?? []} farms={catalogs?.farms ?? []} lots={catalogs?.lots ?? []} animal={freshAnimal} onClose={() => setDetailId(null)} />}
     {success && <p role="status">{operation === 'delete' ? (absenceReconciled ? 'Estado reconciliado: movimiento ausente del historial activo; no se atribuye esta ausencia al intento.' : 'Eliminación del movimiento confirmada.') : operation === 'update' ? 'Actualización del movimiento confirmada.' : 'Movimiento registrado correctamente.'}</p>}
     {phase === 'confirmed' && <p role="status">La escritura está confirmada; falta sincronizar historial y Animal antes de otra operación.</p>}
     {phase === 'pending' && <p role="status">Guardando movimiento...</p>}
@@ -364,8 +366,6 @@ export function MovementScope({ animalId, animal, onAnimalUpdated, revision, org
       onDetail={id => setDetailId(id)} onEdit={canWrite ? openEditor : undefined} onDelete={canWrite ? openDelete : undefined}
       deleteDisabled={phase !== 'idle' || syncing || !!deleteId || !!editorId || historyLoading || !!historyError}
       editDisabled={phase !== 'idle' || syncing || !!deleteId || !!editorId || !catalogs || historyLoading || !!historyError} />
-    {detailId && <AnimalMovementDetail key={detailId} movementId={detailId} animalId={animalId} revision={revision} organizationId={organizationId}
-      types={catalogs?.types ?? []} farms={catalogs?.farms ?? []} lots={catalogs?.lots ?? []} animal={freshAnimal} onClose={() => setDetailId(null)} />}
     {canWrite && editorId && catalogs && <AnimalMovementEditForm key={editorId} movementId={editorId} animalId={animalId}
       revision={revision} organizationId={organizationId} {...catalogs} animalActive={freshAnimal.is_active}
       disabled={phase !== 'idle' || syncing} onCancel={cancelEditor} onSave={update} />}

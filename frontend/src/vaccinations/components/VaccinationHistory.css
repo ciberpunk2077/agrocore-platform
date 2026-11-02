@@ -3,75 +3,123 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    max-width: 1000px;
+    min-width: 0;
+    max-width: 100%;
 }
 
-.vaccinations {
-    gap: 20px;
-}
+.vaccinations { gap: 20px; }
 
 .vaccinations h2,
 .vaccinations h3 {
     margin: 0;
-    color: #0f172a;
+    color: #163c2c;
     font-size: 1.25rem;
 }
 
-.vaccinations [role="alert"] {
-    color: #b91c1c;
+.vaccinations [role="alert"] { color: #b91c1c; }
+
+.vaccination-history {
+    container: vaccination-history / inline-size;
 }
 
-.vaccination-history__table-wrapper {
-    overflow-x: auto;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-}
+.vaccination-history__table-wrapper { min-width: 0; }
 
-.vaccination-history table {
+.vaccination-history__cards {
+    display: block;
     width: 100%;
-    border-collapse: collapse;
+    min-width: 0;
+    border: 0;
+    border-collapse: separate;
 }
 
-.vaccination-history th,
-.vaccination-history td {
-    padding: 14px 20px;
-    border-bottom: 1px solid #e2e8f0;
-    text-align: left;
-    vertical-align: top;
-    font-size: 0.9375rem;
-    color: #0f172a;
+.vaccination-history__cards thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
-.vaccination-history th {
-    color: #64748b;
-    font-size: 0.8125rem;
+.vaccination-history__cards tbody {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 18px;
 }
 
-.vaccination-history tbody tr:last-child td {
-    border-bottom: 0;
+.vaccination-history__cards tbody tr {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid #dfe9e4;
+    border-radius: 15px;
+    background: #fff;
+    box-shadow: 0 3px 12px #123f280a;
 }
 
-.vaccination-history details {
-    margin-top: 8px;
+.vaccination-history__cards tbody tr:hover { border-color: #a7cdb9; }
+
+.vaccination-history__cards td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    color: #163c2c;
+    font-size: .9375rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
-.vaccination-history summary {
+.vaccination-history__cards td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 5px;
+    color: #52675d;
+    font-size: .75rem;
+    font-weight: 500;
+}
+
+.vaccination-history__cards td:first-child {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #edf2ef;
     color: #047857;
-    cursor: pointer;
+    font-weight: 650;
 }
+
+.vaccination-history__cards .vaccination-history__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid #edf2ef;
+}
+
+.vaccination-history__actions::before { flex-basis: 100%; }
+.vaccination-history__actions button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 
 .vaccination-history dl {
     margin: 12px 0 0;
+    padding: 12px;
+    background: #f5faf7;
+    border-radius: 10px;
+}
+.vaccination-history dt { font-weight: 600; color: #52675d; }
+.vaccination-history dd { margin: 4px 0 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.vaccination-history dl > div:last-child dd { margin-bottom: 0; }
+
+/* Use the history's content width, including when a sidebar reduces desktop space. */
+@container vaccination-history (min-width: 620px) {
+    .vaccination-history__cards tbody { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-.vaccination-history dt {
-    font-weight: 600;
-    color: #64748b;
-}
-
-.vaccination-history dd {
-    margin: 4px 0 12px;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
+@container vaccination-history (min-width: 960px) {
+    .vaccination-history__cards tbody { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

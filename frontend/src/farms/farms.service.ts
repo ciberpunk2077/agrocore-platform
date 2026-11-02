@@ -5,8 +5,8 @@ export function deleteFarm(farmId: string, accessToken: string): Promise<{ succe
   return apiRequest(`/farms/${encodeURIComponent(farmId)}`, { method: 'DELETE', accessToken })
 }
 
-export function getFarms(accessToken: string): Promise<Farm[]> {
-  return apiRequest<Farm[]>('/farms/', { accessToken })
+export function getFarms(accessToken: string, signal?: AbortSignal): Promise<Farm[]> {
+  return apiRequest<Farm[]>('/farms/', { accessToken, signal })
 }
 
 export function getFarm(farmId: string, accessToken: string): Promise<Farm> {

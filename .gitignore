@@ -21,3 +21,18 @@ media/
 # Environment variables
 .env
 .env.*
+# Frontend
+node_modules/
+dist/
+dist-demo/
+preview-artifacts/
+coverage/
+
+# Python caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local backups
+*.sqlite3-journal
+*.bak

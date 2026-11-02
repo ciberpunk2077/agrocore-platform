@@ -5,6 +5,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import type { Animal } from '../../animals/types'
 import type { BreedingEvent } from '../../breeding/types'
 import type { PregnancyCreatePayload } from '../types'
+import { normalizedPayload, payloadError } from '../validation'
 import './PregnancyForm.css'
 
 interface PregnancyFormProps {
@@ -12,18 +13,18 @@ interface PregnancyFormProps {
   events: BreedingEvent[]
   eventLabels: Map<string, string>
   disabled: boolean
+  businessToday: string | null
   fieldErrors: Record<string, string[]>
   onClearErrors: () => void
   onCreate: (payload: PregnancyCreatePayload) => Promise<boolean>
 }
 
-function PregnancyForm({ animal, events, eventLabels, disabled, onCreate, fieldErrors, onClearErrors }: PregnancyFormProps) {
+function PregnancyForm({ animal, events, eventLabels, disabled, businessToday, onCreate, fieldErrors, onClearErrors }: PregnancyFormProps) {
   const [breedingId, setBreedingId] = useState('')
   const [diagnosisDate, setDiagnosisDate] = useState('')
   const [expectedBirth, setExpectedBirth] = useState('')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [today, setToday] = useState(() => new Date().toISOString().slice(0, 10))
   const active = useRef(false)
   const submitting = useRef(false)
   const selected = events.find((event) => event.id === breedingId)
@@ -31,25 +32,8 @@ function PregnancyForm({ animal, events, eventLabels, disabled, onCreate, fieldE
 
   useEffect(() => {
     active.current = true
-    let timer: ReturnType<typeof setTimeout>
-    function syncToday() {
-      clearTimeout(timer)
-      const now = new Date()
-      setToday(now.toISOString().slice(0, 10))
-      const midnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
-      timer = setTimeout(syncToday, midnight - now.getTime())
-    }
-    function handleVisibilityChange() {
-      if (document.visibilityState === 'visible') syncToday()
-    }
-    syncToday()
-    window.addEventListener('focus', syncToday)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
       active.current = false
-      clearTimeout(timer)
-      window.removeEventListener('focus', syncToday)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [])
 
@@ -72,7 +56,7 @@ function PregnancyForm({ animal, events, eventLabels, disabled, onCreate, fieldE
       setError('La fecha de diagnóstico no puede ser anterior al evento reproductivo.')
       return
     }
-    if (diagnosisDate > new Date().toISOString().slice(0, 10)) {
+    if (!businessToday || diagnosisDate > businessToday) {
       setError('La fecha de diagnóstico no puede ser futura.')
       return
     }
@@ -80,6 +64,9 @@ function PregnancyForm({ animal, events, eventLabels, disabled, onCreate, fieldE
       setError('La fecha estimada de parto debe ser posterior a la fecha de diagnóstico.')
       return
     }
+    const invalid = payloadError(normalizedPayload({ animal_id: animal.id, breeding_id: selected.id,
+      diagnosis_date: diagnosisDate, expected_birth: expectedBirth, confirmed: true, notes }), animal.id, businessToday, selected.date)
+    if (invalid) { setError(invalid); return }
     submitting.current = true
     try {
       const saved = await onCreate({
@@ -96,6 +83,8 @@ function PregnancyForm({ animal, events, eventLabels, disabled, onCreate, fieldE
         setExpectedBirth('')
         setNotes('')
       }
+    } catch (cause) {
+      if (active.current) setError(cause instanceof Error ? cause.message : 'No fue posible guardar la gestación.')
     } finally {
       submitting.current = false
     }
@@ -107,7 +96,7 @@ function PregnancyForm({ animal, events, eventLabels, disabled, onCreate, fieldE
     {!animal.is_active && <p>El registro está disponible únicamente para animales activos.</p>}
     {events.length === 0 && <p>No hay eventos reproductivos disponibles para registrar una gestación.</p>}
     <form onSubmit={handleSubmit}>
-      <fieldset disabled={disabled || events.length === 0}>
+      <fieldset disabled={disabled || !businessToday || events.length === 0}>
         <div className="pregnancy-form__field pregnancy-form__wide">
           <label htmlFor="pregnancy-breeding">Evento reproductivo</label>
           <select id="pregnancy-breeding" {...fieldErrorAttributes(fieldErrors, 'breeding_id', 'pregnancy-breeding')} value={selected ? breedingId : ''} onChange={(event) => selectEvent(event.target.value)} required>
@@ -119,7 +108,7 @@ function PregnancyForm({ animal, events, eventLabels, disabled, onCreate, fieldE
         </div>
         <div className="pregnancy-form__field">
           <label htmlFor="pregnancy-diagnosis">Fecha de diagnóstico</label>
-          <input id="pregnancy-diagnosis" type="date" value={diagnosisDate} min={selected?.date} max={today}
+          <input id="pregnancy-diagnosis" type="date" value={diagnosisDate} min={selected?.date} max={businessToday ?? undefined}
             aria-invalid={invalidDiagnosis || Boolean(fieldErrors.diagnosis_date?.length) || undefined} aria-describedby={[invalidDiagnosis ? 'pregnancy-diagnosis-error' : '', fieldErrors.diagnosis_date?.length ? 'pregnancy-diagnosis-api-error' : ''].filter(Boolean).join(' ') || undefined}
             onChange={(event) => setDiagnosisDate(event.target.value)} required />
           <FieldError errors={fieldErrors} field="diagnosis_date" controlId="pregnancy-diagnosis" />

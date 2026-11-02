@@ -1,0 +1,90 @@
+@import './tokens.css';
+
+.ag-button, .ag-card, .ag-badge, .ag-control, .ag-field, .ag-state {
+  box-sizing: border-box;
+  font-family: var(--ag-font-family);
+  font-size: var(--ag-font-md);
+  line-height: var(--ag-line-height);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.ag-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ag-space-2);
+  padding: var(--ag-space-2) var(--ag-space-4);
+  min-height: 44px;
+  white-space: normal;
+  border: 1px solid transparent;
+  border-radius: var(--ag-radius-md);
+  background: var(--ag-primary);
+  color: var(--ag-on-primary);
+  font-weight: var(--ag-weight-semibold);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.ag-button--primary:hover:not(:disabled) { background: var(--ag-primary-hover); }
+.ag-button--secondary { background: var(--ag-surface); color: var(--ag-text); border-color: var(--ag-border); }
+.ag-button--ghost { background: transparent; color: var(--ag-primary); }
+.ag-button--secondary:hover:not(:disabled), .ag-button--ghost:hover:not(:disabled) { background: var(--ag-surface-muted); }
+.ag-button--danger { background: var(--ag-danger-bg); color: var(--ag-danger); border-color: var(--ag-danger); }
+.ag-button--danger:hover:not(:disabled) { text-decoration: underline; }
+.ag-button:disabled, .ag-control:disabled {
+  background: var(--ag-disabled-bg);
+  color: var(--ag-disabled-text);
+  border-color: var(--ag-border);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+.ag-button:focus-visible, .ag-control:focus-visible {
+  outline: 3px solid var(--ag-focus);
+  outline-offset: 3px;
+}
+.ag-card {
+  padding: var(--ag-space-5);
+  background: var(--ag-surface);
+  color: var(--ag-text);
+  border: 1px solid var(--ag-separator);
+  border-radius: var(--ag-radius-lg);
+  box-shadow: var(--ag-shadow-sm);
+}
+.ag-badge {
+  display: inline-block;
+  padding: var(--ag-space-1) var(--ag-space-2);
+  border-radius: var(--ag-radius-pill);
+  font-size: var(--ag-font-xs);
+  font-weight: var(--ag-weight-semibold);
+}
+.ag-tone--neutral { color: var(--ag-text-secondary); background: var(--ag-surface-muted); }
+.ag-tone--success { color: var(--ag-success); background: var(--ag-success-bg); }
+.ag-tone--warning { color: var(--ag-warning); background: var(--ag-warning-bg); }
+.ag-tone--danger { color: var(--ag-danger); background: var(--ag-danger-bg); }
+.ag-tone--info { color: var(--ag-info); background: var(--ag-info-bg); }
+.ag-field { display: flex; flex-direction: column; gap: var(--ag-space-2); color: var(--ag-text); }
+.ag-field__label { font-size: var(--ag-font-sm); font-weight: var(--ag-weight-semibold); }
+.ag-control {
+  color-scheme: var(--ag-color-scheme);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--ag-space-2) var(--ag-space-3);
+  border: 1px solid var(--ag-border);
+  border-radius: var(--ag-radius-sm);
+  background: var(--ag-surface);
+  color: var(--ag-text);
+}
+.ag-control::placeholder { color: var(--ag-text-muted); opacity: 1; }
+.ag-control[aria-invalid="true"] { border-color: var(--ag-danger); }
+.ag-control[type="checkbox"], .ag-control[type="radio"] { width: auto; min-height: auto; accent-color: var(--ag-primary); }
+.ag-textarea { resize: vertical; min-height: 96px; }
+.ag-field__hint, .ag-field__error { margin: 0; font-size: var(--ag-font-sm); }
+.ag-field__hint { color: var(--ag-text-secondary); }
+.ag-field__error { color: var(--ag-danger); }
+.ag-state { padding: var(--ag-space-4); border: 1px solid var(--ag-separator); border-radius: var(--ag-radius-md); }
+.ag-state--loading, .ag-state--empty { background: var(--ag-surface-muted); color: var(--ag-text-secondary); }
+.ag-state--error { background: var(--ag-danger-bg); color: var(--ag-danger); border-color: var(--ag-danger); }
+.ag-heading { margin: 0; color: var(--ag-text); font-family: var(--ag-font-family); font-size: var(--ag-font-xl); font-weight: var(--ag-weight-bold); line-height: 1.25; overflow-wrap: anywhere; }
+.ag-heading--large { font-size: var(--ag-font-2xl); }
+.ag-numeric { font-variant-numeric: tabular-nums; font-size: var(--ag-font-2xl); font-weight: var(--ag-weight-bold); }
+@media (prefers-reduced-motion: reduce) { .ag-button { transition: none; } }

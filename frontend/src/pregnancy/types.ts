@@ -17,3 +17,9 @@ export interface PregnancyRecord {
   notes: string | null
   status: string
 }
+
+export type PregnancyDetailState =
+  | { status: 'idle' }
+  | { status: 'loading'; pregnancyId: string }
+  | { status: 'success'; pregnancyId: string; record: PregnancyRecord }
+  | { status: 'error'; pregnancyId: string; message: string }

@@ -23,6 +23,7 @@ function AnimalVaccinations({ animalId, birthDate }: VaccinationsProps) {
   const [result, setResult] = useState<'created' | 'updated' | 'deleted' | 'unavailable' | 'uncertain' | 'update-recheck' | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [viewingId, setViewingId] = useState<string | null>(null)
+  const detailTrigger = useRef<HTMLElement | null>(null)
   const [createBusy, setCreateBusy] = useState(false)
   const operationLocked = useRef(false)
   const [reconciled, setReconciled] = useState(false)
@@ -129,14 +130,17 @@ function AnimalVaccinations({ animalId, birthDate }: VaccinationsProps) {
           }} />}
       </WriteOnly>
       {viewingId && <VaccinationPreparation key={viewingId} readOnly vaccinationId={viewingId} animalId={animalId} birthDate={birthDate}
-        onCancel={() => setViewingId(null)} onSaved={() => {}} onRecheck={() => {}} />}
+        onCancel={() => { setViewingId(null); detailTrigger.current?.focus() }} onSaved={() => {}} onRecheck={() => {}} />}
       {result === 'created' && <p role="status">Vacunación registrada correctamente.</p>}
       {result === 'updated' && <p role="status">Vacunación actualizada correctamente.</p>}
       {result === 'deleted' && <p role="status">Vacunación eliminada correctamente.</p>}
       {result === 'unavailable' && <p role="status">La vacunación ya no está disponible.</p>}
       {result === 'update-recheck' && <p role="status">Consulta el historial antes de iniciar otra escritura. Esta lectura no confirma el resultado de la actualización anterior.</p>}
       <VaccinationHistory key={historyVersion} animalId={animalId} excludedIds={excludedIds} saved={result === 'created' || result === 'updated' || result === 'deleted' ? result : null}
-        actionsDisabled={editingId !== null || deletingId !== null || createBusy || createDraft} onView={setViewingId} onDelete={(id) => {
+        actionsDisabled={editingId !== null || deletingId !== null || createBusy || createDraft} onView={(id) => {
+          detailTrigger.current = document.activeElement as HTMLElement | null
+          setViewingId(id)
+        }} onDelete={(id) => {
           if (operationLocked.current || excludedIds.includes(id)) return
           operationLocked.current = true
           setViewingId(null)

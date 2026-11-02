@@ -1,3 +1,6 @@
+from datetime import datetime, timezone
+from unittest.mock import patch
+
 from django.test import TestCase
 
 from apps.accounts.models import Membership
@@ -59,6 +62,36 @@ class CurrentContextContractTests(TestCase):
             self.assertIsNone(data[name])
         self.assertFalse(data["can_read"])
         self.assertFalse(data["can_write"])
+        self.assertIsNone(data["business_time"])
+
+    def test_tenant_business_time_and_no_store(self):
+        with patch("apps.common.temporal.timezone.now", return_value=datetime(2026, 10, 6, 0, 30, tzinfo=timezone.utc)):
+            response = self.request("GET", "/api/common/context")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "no-store")
+        temporal = response.json()["business_time"]
+        self.assertEqual(temporal["effective_timezone"], "America/Mexico_City")
+        self.assertEqual(temporal["business_today"], "2026-10-05")
+        self.assertEqual(datetime.fromisoformat(temporal["server_now"].replace("Z", "+00:00")), datetime(2026, 10, 6, 0, 30, tzinfo=timezone.utc))
+
+    def test_corrupt_timezone_returns_controlled_503(self):
+        type(self.organization)._base_manager.filter(pk=self.organization.pk).update(timezone="corrupt")
+        response = self.request("GET", "/api/common/context")
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["code"], "tenant_timezone_unavailable")
+        self.assertNotIn("corrupt", response.content.decode())
+
+    def test_default_membership_change_updates_timezone_and_day(self):
+        from apps.organizations.models import Organization
+        other = Organization.objects.create(code="UTC_CONTEXT", name="UTC Context", timezone="UTC")
+        Membership.objects.create(user=self.user, organization=other, role=Membership.Role.VIEWER, is_default=False)
+        with patch("apps.common.temporal.timezone.now", return_value=datetime(2026, 10, 6, 0, 30, tzinfo=timezone.utc)):
+            self.assertEqual(self.request("GET", "/api/common/context").json()["business_time"]["business_today"], "2026-10-05")
+            Membership._base_manager.filter(pk=self.membership.pk).update(is_default=False)
+            Membership._base_manager.filter(user=self.user, organization=other).update(is_default=True)
+            data = self.request("GET", "/api/common/context").json()
+        self.assertEqual(data["organization"]["id"], str(other.pk))
+        self.assertEqual(data["business_time"]["business_today"], "2026-10-06")
 
     def test_query_cannot_select_tenant_or_role(self):
         from apps.organizations.models import Organization

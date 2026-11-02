@@ -11,6 +11,7 @@ import type {
   WeighingMethod,
 } from '../types'
 import './WeightHistory.css'
+import WeightOverview from '../../animals/components/WeightOverview'
 
 interface WeightHistoryProps {
   animalId: string
@@ -148,6 +149,7 @@ function AnimalWeightHistory({ animalId, birthDate, saved, onUpdated, onDeleted,
       </div>
 
       {catalogError && <p role="alert">{catalogError} Los pesos siguen disponibles; los nombres de métodos no se pudieron consultar.</p>}
+      <WeightOverview records={weights} />
       <WriteOnly>
         {deleting && <WeightDeleteConfirmation key={deleting.id} record={deleting}
           onDeleted={onDeleted} onRecheck={onRetry} onCancel={() => {
@@ -167,26 +169,26 @@ function AnimalWeightHistory({ animalId, birthDate, saved, onUpdated, onDeleted,
         </div>
       ) : (
         <div className="weight-history__table-wrapper">
-          <table className="weight-history__table">
+          <table className="weight-history__table expedient-records" role="table">
             <thead>
               <tr>
-                <th>Fecha</th>
-                <th>Peso</th>
-                <th>Método</th>
-                <WriteOnly><th>Acciones</th></WriteOnly>
+                <th scope="col">Fecha</th>
+                <th scope="col">Peso</th>
+                <th scope="col">Método</th>
+                <WriteOnly><th scope="col">Acciones</th></WriteOnly>
               </tr>
             </thead>
 
-            <tbody>
-              {weights.map((weight) => (
-                <tr key={weight.id}>
-                  <td>{formatDate(weight.date)}</td>
-                  <td>{weight.weight} kg</td>
-                  <td>
+            <tbody role="rowgroup">
+              {[...weights].sort((a, b) => b.date.localeCompare(a.date)).map((weight) => (
+                <tr role="row" key={weight.id}>
+                  <td data-label="Fecha" role="cell">{formatDate(weight.date)}</td>
+                  <td data-label="Peso" role="cell">{weight.weight} kg</td>
+                  <td data-label="Método" role="cell">
                     {catalogError ? 'Catálogo de métodos no disponible'
                       : methodNames.get(weight.weighing_method_id) ?? 'Método no disponible'}
                   </td>
-                  <WriteOnly><td><button type="button" disabled={actionsDisabled} onClick={() => {
+                  <WriteOnly><td data-label="Acciones" role="cell"><button type="button" disabled={actionsDisabled} onClick={() => {
                     if (selectionLocked.current) return
                     selectionLocked.current = true
                     setSelectedId(weight.id)

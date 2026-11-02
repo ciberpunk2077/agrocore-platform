@@ -1,56 +1,54 @@
-.animals-page {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-}
-
-.animals-page__header h1 {
-    margin: 0;
-    color: #0f172a;
-    font-size: 1.75rem;
-}
-
-.animals-page__header p {
-    margin: 6px 0 0;
-    color: #64748b;
-}
-
-.animal-table-container {
-    overflow-x: auto;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-}
-
-.animal-table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-}
-
-.animal-table th,
-.animal-table td {
-    padding: 14px 16px;
-    border-bottom: 1px solid #e2e8f0;
-    white-space: nowrap;
-}
-
-.animal-table th {
-    color: #475569;
-    background: #f8fafc;
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-.animal-table td {
-    color: #0f172a;
-    font-size: 0.9375rem;
-}
-
-.animal-table tbody tr:last-child td {
-    border-bottom: 0;
-}
-
-.animal-table tbody tr:hover {
-    background: #f8fafc;
-}
+﻿.animals-page { container: animal-inventory / inline-size; display: flex; flex-direction: column; gap: 24px; min-width: 0; color: #163c2c; }
+.animals-page *, .animals-page *::before, .animals-page *::after { box-sizing: border-box; }
+.animals-page__header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+.animals-page__header h1 { margin: 4px 0 8px; font-size: clamp(1.6rem, 3vw, 2rem); line-height: 1.25; color: #123c2c; }
+.animals-page__header p { margin: 0; color: #52675d; line-height: 1.6; }
+.animals-page .inventory-eyebrow { color: var(--ag-primary, #047857); font-size: .8125rem; font-weight: 650; }
+.animals-page .inventory-existing-create { display: inline-flex; padding: 12px 18px; background: #047857; border-radius: 10px; color: #fff; text-decoration: none; font-weight: 600; }
+.animals-page .ag-card { border: 1px solid #dfe9e4; border-radius: 16px; background: #fff; color: #163c2c; box-shadow: 0 4px 16px #123f2808; }
+.inventory-stats { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.inventory-stat { display: flex; flex-direction: column; gap: 12px; padding: 22px; border-top: 3px solid #047857 !important; }
+.inventory-stat__label { font-size: .875rem; color: #52675d; }
+.inventory-stat strong { font-size: clamp(1.4rem, 2vw, 2rem); font-variant-numeric: tabular-nums; line-height: 1.3; overflow-wrap: anywhere; }
+.inventory-stat small { color: #52675d; font-size: .75rem; }
+.animals-page .inventory-notice { color: #52675d; font-size: .8125rem; line-height: 1.6; margin: 0; }
+.inventory-filters { display: flex; flex-direction: column; align-items: stretch; gap: 20px; padding: 24px; }
+.inventory-filters h2 { margin: 0; font-size: 1.1rem; }
+.inventory-filter-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.inventory-filters > .ag-button { align-self: start; }
+.animals-page .ag-control { width: 100%; background: #fff; color: #163c2c; border-color: #a6beb1; border-radius: 9px; }
+.animals-page .ag-field__label { color: #3d5a4a; }
+.inventory-toolbar, .inventory-pagination { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+.inventory-toolbar p, .inventory-pagination p { margin: 0; color: #52675d; font-size: .875rem; line-height: 1.6; }
+.inventory-view-switch, .inventory-pagination > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.inventory-table-scroll { min-width: 0; max-width: 100%; overflow-x: auto; background: #fff; border: 1px solid #dfe9e4; border-radius: 16px; box-shadow: 0 4px 16px #123f2808; }
+.inventory-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 1100px; }
+.inventory-table caption { padding: 18px 20px; text-align: left; font-size: .875rem; color: #52675d; }
+.inventory-table th, .inventory-table td { padding: 18px 20px; border-bottom: 1px solid #e5eee9; font-size: .875rem; line-height: 1.6; vertical-align: middle; max-width: 260px; overflow-wrap: anywhere; }
+.inventory-table thead th { color: #52675d; font-size: .75rem; background: #f5faf7; font-weight: 600; }
+.inventory-table tbody th { font-weight: 400; min-width: 260px; }
+.inventory-table tbody tr:last-child > * { border-bottom: 0; }
+.inventory-table tbody tr:hover { background: #f4faf7; }
+.inventory-identity { display: flex; align-items: start; gap: 12px; min-width: 0; }
+.inventory-identity > span:last-child { display: flex; flex-direction: column; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.inventory-identity strong { font-size: 1rem; font-weight: 650; color: #163c2c; line-height: 1.5; }
+.inventory-identity small { font-size: .75rem; color: #52675d; line-height: 1.5; }
+.inventory-identity__icon { flex: 0 0 40px; display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid #cce7d9; border-radius: 12px; background: #ecfdf5; color: #047857; }
+.inventory-identity__icon svg { width: 24px; height: 24px; }
+.animals-page .ag-badge { background: #eef7f2; border: 1px solid #c8dfd1; color: #28543e; font-size: .75rem; }
+.inventory-record-link { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; color: #047857; font-weight: 600; font-size: .875rem; text-underline-offset: 4px; }
+.inventory-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; list-style: none; margin: 0; padding: 0; }
+.inventory-grid > li { min-width: 0; display: flex; }
+.inventory-animal-card { width: 100%; display: flex; flex-direction: column; align-items: start; gap: 20px; padding: 22px; }
+.inventory-animal-card dl { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0; }
+.inventory-animal-card dl > div { min-width: 0; }
+.inventory-animal-card dl > div:last-child { grid-column: 1 / -1; }
+.inventory-animal-card dt { margin: 0 0 5px; font-size: .75rem; color: #52675d; }
+.inventory-animal-card dd { margin: 0; font-size: .875rem; color: #163c2c; overflow-wrap: anywhere; line-height: 1.6; }
+.inventory-animal-card > .inventory-record-link { align-self: stretch; margin-top: auto; padding-top: 16px; border-top: 1px solid #e5eee9; }
+.animals-page :focus-visible { outline: 3px solid #047857; outline-offset: 4px; }
+.animals-page .ag-state { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 24px; border-radius: 14px; line-height: 1.6; }
+@container animal-inventory (min-width: 560px) { .inventory-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .inventory-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container animal-inventory (min-width: 1000px) { .inventory-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .inventory-filter-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@container animal-inventory (max-width: 399px) { .inventory-filters, .inventory-animal-card { padding: 16px; } .inventory-pagination > div { width: 100%; } .inventory-pagination .ag-button { flex: 1; } }
+@media (prefers-reduced-motion: reduce) { .animals-page .ag-button { transition: none; } }

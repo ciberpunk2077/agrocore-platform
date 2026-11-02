@@ -1,9 +1,10 @@
 import { apiRequest } from '../lib/api'
 import type { Animal, AnimalParentCandidate, AnimalUpdatePayload, AnimalWritePayload } from './types'
 
-export function getAnimals(accessToken: string): Promise<Animal[]> {
+export function getAnimals(accessToken: string, signal?: AbortSignal): Promise<Animal[]> {
   return apiRequest<Animal[]>('/animals/', {
     accessToken,
+    signal,
   })
 }
 

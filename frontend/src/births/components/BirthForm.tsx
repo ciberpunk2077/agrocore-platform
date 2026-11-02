@@ -1,6 +1,6 @@
 import FieldError from '../../components/FieldError'
 import { fieldErrorAttributes } from '../../lib/api-errors'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './BirthForm.css'
 import type { Animal, Gender } from '../../animals/types'
 import type { BreedingEvent } from '../../breeding/types'
@@ -14,6 +14,7 @@ interface BirthFormProps {
   animals: Animal[]
   genders: Gender[]
   disabled: boolean
+  businessToday: string | null
   fieldErrors: Record<string, string[]>
   onClearErrors: () => void
   onCreate: (payload: BirthCreatePayload) => Promise<boolean>
@@ -41,6 +42,7 @@ function BirthForm({
   animals,
   genders,
   disabled,
+  businessToday,
   onCreate,
   fieldErrors,
   onClearErrors,
@@ -58,6 +60,11 @@ function BirthForm({
 
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const active = useRef(false), locked = useRef(false)
+  useEffect(() => {
+    active.current = true
+    return () => { active.current = false }
+  }, [])
 
   const pregnancyLabels = useMemo(() => {
     const breedingMap = new Map(
@@ -106,9 +113,7 @@ function BirthForm({
     return dates.sort().at(-1) ?? ''
   }, [selectedPregnancy, selectedBreeding])
 
-  const today = new Date()
-    .toISOString()
-    .slice(0, 10)
+  const today = businessToday ?? ''
 
   const availableCalves = useMemo(() => {
     return animals.filter(
@@ -153,7 +158,7 @@ function BirthForm({
   ) {
     event.preventDefault()
 
-    if (disabled || submitting) {
+    if (!active.current || locked.current || disabled || submitting || !businessToday) {
       return
     }
 
@@ -260,16 +265,18 @@ function BirthForm({
       notes: notes.trim() || null,
     }
 
+    locked.current = true
     setSubmitting(true)
 
     try {
       const saved = await onCreate(payload)
 
-      if (saved) {
+      if (saved && active.current) {
         resetForm()
       }
     } finally {
-      setSubmitting(false)
+      locked.current = false
+      if (active.current) setSubmitting(false)
     }
   }
 

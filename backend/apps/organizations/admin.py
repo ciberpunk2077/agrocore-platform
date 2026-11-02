@@ -51,6 +51,7 @@ class OrganizationAdmin(admin.ModelAdmin):
                 "fields": (
                     "name",
                     "code",
+                    "timezone",
                     "slug",
                     "tax_id",
                 )

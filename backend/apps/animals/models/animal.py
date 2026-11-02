@@ -176,7 +176,10 @@ class Animal(AuditModel):
         # Fecha futura
         if self.birth_date:
 
-            if self.birth_date > timezone.now().date():
+            today = getattr(self, "_birth_business_today", None)
+            if today is None:
+                today = timezone.now().date()
+            if self.birth_date > today:
 
                 raise ValidationError(
                     {
@@ -356,7 +359,14 @@ class Animal(AuditModel):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
-
-        self.full_clean()
-
-        super().save(*args, **kwargs)
+        # Only the automatic Birth path supplies a tenant civil day. Ordinary
+        # Animal writes retain their existing temporal contract.
+        business_today = kwargs.pop("_birth_business_today", None)
+        if business_today is not None:
+            self._birth_business_today = business_today
+        try:
+            self.full_clean()
+            super().save(*args, **kwargs)
+        finally:
+            if business_today is not None:
+                del self._birth_business_today

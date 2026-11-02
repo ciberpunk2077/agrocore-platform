@@ -24,3 +24,9 @@ export interface BreedingEvent {
   technician: string | null
   notes: string | null
 }
+
+export type BreedingDetailState =
+  | { status: 'idle' }
+  | { status: 'loading'; eventId: string }
+  | { status: 'success'; eventId: string; record: BreedingEvent }
+  | { status: 'error'; eventId: string; message: string }
